@@ -33,10 +33,15 @@ export default function Register() {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    e.preventDefault(); // Prevent default form submission
+
+    // Prevent multiple submissions
+    if (loading) return;
+
     setLoading(true);
     setError("");
 
+    // Validate passwords
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match");
       setLoading(false);
@@ -49,16 +54,21 @@ export default function Register() {
       return;
     }
 
-    const { confirmPassword, ...registerData } = formData;
-    const result = await register(registerData);
+    try {
+      const { confirmPassword, ...registerData } = formData;
+      const result = await register(registerData);
 
-    if (result.success) {
-      navigate("/");
-    } else {
-      setError(result.error);
+      if (result.success) {
+        navigate("/");
+      } else {
+        setError(result.error || "Registration failed");
+      }
+    } catch (error) {
+      console.error("Registration error:", error);
+      setError("An unexpected error occurred");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const passwordRequirements = [

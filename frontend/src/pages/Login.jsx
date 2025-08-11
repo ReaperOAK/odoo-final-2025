@@ -31,19 +31,32 @@ export default function Login() {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    e.preventDefault(); // Prevent default form submission
+    console.log("Form submit intercepted");
+
+    // Prevent multiple submissions
+    if (loading) return;
+
     setLoading(true);
     setError("");
 
-    const result = await login(formData);
+    try {
+      const result = await login(formData);
+      console.log("Login result:", result);
 
-    if (result.success) {
-      navigate(from, { replace: true });
-    } else {
-      setError(result.error);
+      if (result.success) {
+        console.log("Login successful, navigating...");
+        navigate(from, { replace: true });
+      } else {
+        console.log("Login failed:", result.error);
+        setError(result.error || "Login failed");
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      setError("An unexpected error occurred");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const fillDemoCredentials = (type) => {
