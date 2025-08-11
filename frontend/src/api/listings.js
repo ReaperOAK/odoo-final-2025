@@ -5,7 +5,7 @@ export const listingsAPI = {
   getListings: async (params = {}) => {
     try {
       const queryParams = new URLSearchParams();
-      
+
       if (params.from) queryParams.append('from', params.from);
       if (params.to) queryParams.append('to', params.to);
       if (params.query) queryParams.append('search', params.query); // Changed from 'query' to 'search'
@@ -22,7 +22,7 @@ export const listingsAPI = {
 
       const queryString = queryParams.toString();
       const url = queryString ? `/listings?${queryString}` : '/listings';
-      
+
       const response = await api.get(url);
       return response.data;
     } catch (error) {

@@ -95,10 +95,7 @@ const Listings = () => {
       const response = await listingsAPI.getListings(params);
 
       if (response.success) {
-        const {
-          listings: newListings,
-          pagination,
-        } = response.data;
+        const { listings: newListings, pagination } = response.data;
 
         if (reset) {
           setListings(newListings);

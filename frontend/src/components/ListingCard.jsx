@@ -54,10 +54,12 @@ const ListingCard = ({
   };
 
   const getPriceText = () => {
-    const price = Number(basePrice).toLocaleString("en-IN", {
-      style: "currency",
-      currency: "INR",
-    });
+    const price = basePrice
+      ? Number(basePrice).toLocaleString("en-IN", {
+          style: "currency",
+          currency: "INR",
+        })
+      : "₹0";
     const unitText =
       unitType === "hour" ? "hr" : unitType === "day" ? "day" : "week";
     return `${price}/${unitText}`;
@@ -223,7 +225,9 @@ const ListingCard = ({
               <div className="flex items-center text-gray-600">
                 <MapPinIcon className="w-4 h-4 mr-1" />
                 <span className="text-sm truncate">
-                  {typeof location === 'string' ? location : `${location.city}, ${location.state}`}
+                  {typeof location === "string"
+                    ? location
+                    : `${location.city}, ${location.state}`}
                 </span>
               </div>
             )}
