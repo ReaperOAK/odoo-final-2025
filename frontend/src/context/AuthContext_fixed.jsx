@@ -192,12 +192,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Get wallet balance for hosts
-  const getWalletBalance = () => {
-    if (!user || !isHost()) return 0;
-    return user.hostProfile?.walletBalance || 0;
-  };
-
   const value = {
     user,
     loading,
@@ -209,7 +203,6 @@ export const AuthProvider = ({ children }) => {
     refreshProfile,
     becomeHost,
     requestVerification,
-    getWalletBalance,
     isAdmin,
     isHost,
     isCustomer,

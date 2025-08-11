@@ -9,24 +9,32 @@ import {
   CurrencyDollarIcon,
   ListBulletIcon,
   UserGroupIcon,
+  BuildingStorefrontIcon,
+  BanknotesIcon,
+  ArrowUpIcon,
+  ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
 import { useAuth } from "../context/AuthContext";
 import { hostsAPI } from "../api/hosts";
 import { listingsAPI } from "../api/listings";
 import { ordersAPI } from "../api/orders";
+import { payoutsAPI } from "../api/payouts";
 import Calendar from "../components/Calendar";
 import WalletBalance from "../components/WalletBalance";
 import HostVerification from "../components/HostVerification";
 import ListingCard from "../components/ListingCard";
+import StatusChip from "../components/StatusChip";
 import toast from "react-hot-toast";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 
 const HostDashboard = () => {
-  const { user, isHost, isVerifiedHost } = useAuth();
+  const { user, isHost, isVerified } = useAuth();
   const [dashboardData, setDashboardData] = useState(null);
   const [recentListings, setRecentListings] = useState([]);
   const [upcomingBookings, setUpcomingBookings] = useState([]);
   const [calendarEvents, setCalendarEvents] = useState([]);
+  const [earnings, setEarnings] = useState(null);
+  const [availableBalance, setAvailableBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
 

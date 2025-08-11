@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
-import { getPayouts, processPayout, getPendingPayouts } from "../api/payments";
+import { adminAPI } from "../api/admin";
 import { formatPrice } from "../utils/formatters";
 import {
   MagnifyingGlassIcon,
@@ -46,9 +46,10 @@ export default function AdminPayouts() {
   const fetchPayouts = async () => {
     try {
       setLoading(true);
-      const response = await getPayouts();
-      setPayouts(response.data.payouts);
-      calculateStats(response.data.payouts);
+      const response = await adminAPI.getAllPayouts();
+      const payoutsData = response.payouts || response.data?.payouts || [];
+      setPayouts(payoutsData);
+      calculateStats(payoutsData);
       setError(null);
     } catch (err) {
       console.error("Error fetching payouts:", err);
@@ -94,7 +95,11 @@ export default function AdminPayouts() {
     setProcessing((prev) => ({ ...prev, [payoutId]: true }));
 
     try {
-      await processPayout(payoutId, { action });
+      if (action === "approve") {
+        await adminAPI.processPayout(payoutId, { notes: "Approved by admin" });
+      } else if (action === "reject") {
+        await adminAPI.rejectPayout(payoutId, "Rejected by admin");
+      }
 
       setPayouts((prev) =>
         prev.map((payout) =>

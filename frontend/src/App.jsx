@@ -26,6 +26,7 @@ const AdminProducts = lazy(() => import("./pages/AdminProducts"));
 const AdminRentals = lazy(() => import("./pages/AdminRentals"));
 const AdminHosts = lazy(() => import("./pages/AdminHosts"));
 const AdminPayouts = lazy(() => import("./pages/AdminPayouts"));
+const APITester = lazy(() => import("./pages/APITester"));
 
 // Loading component
 const LoadingSpinner = () => (
@@ -149,6 +150,16 @@ function App() {
                   element={
                     <ProtectedRoute adminOnly>
                       <AdminPayouts />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Developer/Testing Routes */}
+                <Route
+                  path="/api-tester"
+                  element={
+                    <ProtectedRoute>
+                      <APITester />
                     </ProtectedRoute>
                   }
                 />
