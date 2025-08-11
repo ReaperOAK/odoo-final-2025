@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import ProductCard from "../components/ProductCard";
 import { productsAPI } from "../api/products";
 import {
@@ -9,37 +9,111 @@ import {
   AdjustmentsHorizontalIcon,
 } from "@heroicons/react/24/outline";
 
+// Debounce hook for search
+function useDebounce(value, delay) {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
 export default function Products() {
-  const [products, setProducts] = useState([]);
+  const [allProducts, setAllProducts] = useState([]); // Store all products
+  const [filteredProducts, setFilteredProducts] = useState([]); // Store filtered results
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("name");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const productsPerPage = 12;
 
+  // Debounce search term to avoid too many filter operations
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+
+  // Fetch all products once
   useEffect(() => {
-    fetchProducts();
-  }, [searchTerm, sortBy, currentPage]);
+    fetchAllProducts();
+  }, []);
 
-  const fetchProducts = async () => {
+  // Filter and paginate products when search or sort changes
+  useEffect(() => {
+    filterAndSortProducts();
+  }, [debouncedSearchTerm, sortBy, allProducts]);
+
+  // Update pagination when filtered products change
+  useEffect(() => {
+    const pages = Math.ceil(filteredProducts.length / productsPerPage);
+    setTotalPages(pages);
+    if (currentPage > pages && pages > 0) {
+      setCurrentPage(1);
+    }
+  }, [filteredProducts, currentPage]);
+
+  const fetchAllProducts = async () => {
     try {
       setLoading(true);
-      const params = {
-        page: currentPage,
-        limit: 12,
-        search: searchTerm,
-        sort: sortBy,
-      };
-
-      const response = await productsAPI.getProducts(params);
-      setProducts(response.data || []);
-      setTotalPages(response.pagination?.pages || 1);
+      // Fetch all products without search filter
+      const response = await productsAPI.getProducts({ limit: 100 });
+      setAllProducts(response.data || []);
     } catch (error) {
       console.error("Failed to fetch products:", error);
     } finally {
       setLoading(false);
     }
   };
+
+  const filterAndSortProducts = () => {
+    let filtered = [...allProducts];
+
+    // Client-side search
+    if (debouncedSearchTerm && debouncedSearchTerm.trim()) {
+      const searchLower = debouncedSearchTerm.trim().toLowerCase();
+      filtered = allProducts.filter(
+        (product) =>
+          product.name.toLowerCase().includes(searchLower) ||
+          (product.description &&
+            product.description.toLowerCase().includes(searchLower))
+      );
+    }
+
+    // Client-side sorting
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case "name":
+          return a.name.localeCompare(b.name);
+        case "-name":
+          return b.name.localeCompare(a.name);
+        case "pricing.rate":
+          return (a.pricing[0]?.rate || 0) - (b.pricing[0]?.rate || 0);
+        case "-pricing.rate":
+          return (b.pricing[0]?.rate || 0) - (a.pricing[0]?.rate || 0);
+        case "-stock":
+          return b.stock - a.stock;
+        default:
+          return 0;
+      }
+    });
+
+    setFilteredProducts(filtered);
+  };
+
+  // Get products for current page
+  const getCurrentPageProducts = () => {
+    const startIndex = (currentPage - 1) * productsPerPage;
+    const endIndex = startIndex + productsPerPage;
+    return filteredProducts.slice(startIndex, endIndex);
+  };
+
+  const products = getCurrentPageProducts();
 
   const handleSearch = (e) => {
     setSearchTerm(e.target.value);
@@ -129,13 +203,13 @@ export default function Products() {
             <ChevronLeftIcon className="w-4 h-4 mr-1 group-hover:-translate-x-0.5 transition-transform" />
             Previous
           </button>
-          
-          <div className="hidden sm:flex items-center">
-            {pages}
-          </div>
-          
+
+          <div className="hidden sm:flex items-center">{pages}</div>
+
           <button
-            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+            onClick={() =>
+              setCurrentPage(Math.min(totalPages, currentPage + 1))
+            }
             disabled={currentPage === totalPages}
             className="group inline-flex items-center px-4 py-2 rounded-xl text-sm font-medium bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-brand disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
           >
@@ -143,7 +217,7 @@ export default function Products() {
             <ChevronRightIcon className="w-4 h-4 ml-1 group-hover:translate-x-0.5 transition-transform" />
           </button>
         </div>
-        
+
         {/* Mobile page indicator */}
         <div className="sm:hidden text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
           Page {currentPage} of {totalPages}
@@ -160,19 +234,20 @@ export default function Products() {
           <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full blur-3xl -translate-y-48 translate-x-48"></div>
           <div className="absolute bottom-0 left-0 w-80 h-80 bg-white/5 rounded-full blur-3xl translate-y-40 -translate-x-40"></div>
         </div>
-        
+
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
           <div className="text-center">
             <div className="inline-flex items-center bg-white/10 backdrop-blur-sm text-white px-4 py-2 rounded-full text-sm font-medium mb-6 border border-white/20">
               <SparklesIcon className="w-4 h-4 mr-2" />
               Professional Equipment Catalog
             </div>
-            
+
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 leading-tight">
               Browse Equipment
             </h1>
             <p className="text-lg sm:text-xl text-blue-100 max-w-2xl mx-auto">
-              Find the perfect equipment for your project with real-time availability
+              Find the perfect equipment for your project with real-time
+              availability
             </p>
           </div>
         </div>
@@ -187,15 +262,44 @@ export default function Products() {
             <div className="flex-1">
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+                  {searchTerm && searchTerm !== debouncedSearchTerm ? (
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-400"></div>
+                  ) : (
+                    <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+                  )}
                 </div>
                 <input
                   type="text"
-                  placeholder="Search for cameras, laptops, microphones..."
+                  placeholder="Search products... (try typing part of a word)"
                   value={searchTerm}
                   onChange={handleSearch}
                   className="block w-full pl-12 pr-4 py-4 border border-gray-200 rounded-xl leading-5 bg-white/70 backdrop-blur-sm placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-brand focus:border-brand transition-all duration-200 text-lg shadow-sm"
                 />
+                {searchTerm && (
+                  <div className="absolute inset-y-0 right-0 pr-4 flex items-center">
+                    <button
+                      onClick={() => {
+                        setSearchTerm("");
+                        setCurrentPage(1);
+                      }}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M6 18L18 6M6 6l12 12"
+                        ></path>
+                      </svg>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -216,14 +320,16 @@ export default function Products() {
                   <option value="-stock">Stock: High to Low</option>
                 </select>
               </div>
-              
+
               {/* Results Count */}
               {!loading && (
                 <div className="flex items-center text-gray-600 text-sm bg-brand/5 border border-brand/20 px-4 py-3 rounded-xl backdrop-blur-sm">
                   <div className="w-2 h-2 bg-brand rounded-full mr-3 flex-shrink-0"></div>
                   <span className="font-medium">
-                    {products.length > 0 ? (
-                      <>{products.length} of {totalPages * 12} products</>
+                    {filteredProducts.length > 0 ? (
+                      <>
+                        {products.length} of {filteredProducts.length} products
+                      </>
                     ) : (
                       "No products found"
                     )}
@@ -242,7 +348,7 @@ export default function Products() {
               <div className="h-6 bg-gradient-to-r from-gray-200 to-gray-300 rounded-lg w-32 animate-pulse"></div>
               <div className="h-6 bg-gradient-to-r from-gray-200 to-gray-300 rounded-lg w-24 animate-pulse"></div>
             </div>
-            
+
             {/* Intelligent responsive grid: mobile=1, tablet=2, desktop=3, large=4 */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 lg:gap-8">
               {[...Array(12)].map((_, i) => (
@@ -272,12 +378,12 @@ export default function Products() {
                 {products.length} items found
               </div>
             </div>
-            
+
             {/* Intelligent responsive grid: mobile=1, tablet=2, desktop=3, large=4 */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 lg:gap-8">
               {products.map((product) => (
-                <div 
-                  key={product._id} 
+                <div
+                  key={product._id}
                   className="group transform hover:scale-105 transition-all duration-300 hover:z-10"
                 >
                   <ProductCard product={product} />
@@ -296,7 +402,7 @@ export default function Products() {
                 <div className="w-3 h-3 bg-orange-400 rounded-full"></div>
               </div>
             </div>
-            
+
             <h3 className="text-2xl font-bold text-gray-900 mb-4">
               No products found
             </h3>
@@ -305,7 +411,7 @@ export default function Products() {
                 ? `No results found for "${searchTerm}". Try adjusting your search terms.`
                 : "No products are available at the moment. Please check back later."}
             </p>
-            
+
             {searchTerm && (
               <button
                 onClick={() => {

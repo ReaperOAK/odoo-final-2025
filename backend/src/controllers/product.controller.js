@@ -12,9 +12,9 @@ const CACHE_DURATION = 2 * 60 * 1000; // 2 minutes
  */
 const getProducts = asyncHandler(async (req, res, next) => {
   const requestId = req.requestId || logger.generateRequestId();
-  const { 
-    page = 1, 
-    limit = 20, 
+  const {
+    page = 1,
+    limit = 20,
     search,
     category,
     minStock = 0,
@@ -22,14 +22,14 @@ const getProducts = asyncHandler(async (req, res, next) => {
     sort = '-createdAt'
   } = req.query;
 
-  logger.info('Products list requested', { 
-    page, 
-    limit, 
-    search, 
+  logger.info('Products list requested', {
+    page,
+    limit,
+    search,
     category,
     minStock,
     available,
-    requestId 
+    requestId
   });
 
   logger.startTimer('products-fetch', requestId);
@@ -37,11 +37,11 @@ const getProducts = asyncHandler(async (req, res, next) => {
   // Build cache key
   const cacheKey = JSON.stringify({ page, limit, search, category, minStock, available, sort });
   const cached = productListCache.get(cacheKey);
-  
+
   if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
     logger.debug('Products cache hit', { requestId });
     logger.endTimer('products-fetch', requestId, { result: 'cached' });
-    
+
     return res.status(200).json({
       ...cached.data,
       requestId
@@ -50,22 +50,22 @@ const getProducts = asyncHandler(async (req, res, next) => {
 
   // Build query
   let query = {};
-  
+
   // Text search
   if (search) {
     query.$text = { $search: search };
   }
-  
+
   // Category filter (if categories are added to schema later)
   if (category) {
     query.category = category;
   }
-  
+
   // Stock filter
   if (minStock > 0) {
     query.stock = { $gte: parseInt(minStock) };
   }
-  
+
   // Available filter (products with stock > 0)
   if (available === 'true') {
     query.stock = { $gt: 0 };
@@ -84,7 +84,7 @@ const getProducts = asyncHandler(async (req, res, next) => {
       .limit(limitNum)
       .skip(skip)
       .lean(), // Use lean for better performance
-    
+
     Product.countDocuments(query)
   ]);
 
@@ -97,7 +97,7 @@ const getProducts = asyncHandler(async (req, res, next) => {
         status: { $in: ['confirmed', 'picked_up'] },
         endTime: { $gt: new Date() }
       });
-      
+
       return {
         ...product,
         availableStock: Math.max(0, product.stock - activeBookings),
@@ -141,7 +141,7 @@ const getProducts = asyncHandler(async (req, res, next) => {
     }
   }, CACHE_DURATION);
 
-  logger.endTimer('products-fetch', requestId, { 
+  logger.endTimer('products-fetch', requestId, {
     count: products.length,
     totalPages: Math.ceil(total / limitNum)
   });
@@ -166,7 +166,7 @@ const getProduct = asyncHandler(async (req, res, next) => {
   const product = await Product.findById(id)
     .populate('createdBy', 'name email')
     .lean();
-  
+
   if (!product) {
     logger.endTimer('product-detail-fetch', requestId, { result: 'not-found' });
     throw new AppError('Product not found', 404, ERROR_TYPES.NOT_FOUND);
@@ -179,20 +179,20 @@ const getProduct = asyncHandler(async (req, res, next) => {
       status: { $in: ['confirmed', 'picked_up'] },
       endTime: { $gt: new Date() }
     }),
-    
+
     RentalOrder.countDocuments({
       product: id,
       status: { $ne: 'cancelled' }
     }),
-    
+
     RentalOrder.find({
       product: id,
       status: { $ne: 'cancelled' }
     })
-    .sort({ createdAt: -1 })
-    .limit(5)
-    .populate('customer', 'name')
-    .lean()
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .populate('customer', 'name')
+      .lean()
   ]);
 
   const enrichedProduct = {
@@ -202,7 +202,7 @@ const getProduct = asyncHandler(async (req, res, next) => {
     stats: {
       totalBookings,
       activeBookings,
-      utilizationRate: product.stock > 0 ? 
+      utilizationRate: product.stock > 0 ?
         Math.round((activeBookings / product.stock) * 100) : 0
     },
     recentBookings: recentBookings.map(booking => ({
@@ -230,11 +230,11 @@ const createProduct = asyncHandler(async (req, res, next) => {
   const requestId = req.requestId || logger.generateRequestId();
   const { name, description, stock, pricing, images } = req.body;
 
-  logger.info('Product creation started', { 
-    name, 
+  logger.info('Product creation started', {
+    name,
     stock,
     adminId: req.user._id,
-    requestId 
+    requestId
   });
 
   logger.startTimer('product-creation', requestId);
@@ -254,11 +254,11 @@ const createProduct = asyncHandler(async (req, res, next) => {
   // Clear product list cache
   productListCache.clear();
 
-  logger.info('Product created successfully', { 
-    productId: product._id, 
+  logger.info('Product created successfully', {
+    productId: product._id,
     name,
     adminId: req.user._id,
-    requestId 
+    requestId
   });
 
   logger.endTimer('product-creation', requestId, { result: 'success' });
@@ -279,16 +279,16 @@ const updateProduct = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
   const { name, description, stock, pricing, images } = req.body;
 
-  logger.info('Product update started', { 
+  logger.info('Product update started', {
     productId: id,
     adminId: req.user._id,
-    requestId 
+    requestId
   });
 
   logger.startTimer('product-update', requestId);
 
   const product = await Product.findById(id);
-  
+
   if (!product) {
     logger.endTimer('product-update', requestId, { result: 'not-found' });
     throw new AppError('Product not found', 404, ERROR_TYPES.NOT_FOUND);
@@ -310,7 +310,7 @@ const updateProduct = asyncHandler(async (req, res, next) => {
         activeBookings,
         requestId
       });
-      
+
       logger.endTimer('product-update', requestId, { result: 'stock-conflict' });
       throw new AppError(
         `Cannot reduce stock below ${activeBookings}. There are ${activeBookings} active bookings`,
@@ -339,10 +339,10 @@ const updateProduct = asyncHandler(async (req, res, next) => {
   // Clear product list cache
   productListCache.clear();
 
-  logger.info('Product updated successfully', { 
+  logger.info('Product updated successfully', {
     productId: id,
     adminId: req.user._id,
-    requestId 
+    requestId
   });
 
   logger.endTimer('product-update', requestId, { result: 'success' });
@@ -362,16 +362,16 @@ const deleteProduct = asyncHandler(async (req, res, next) => {
   const requestId = req.requestId || logger.generateRequestId();
   const { id } = req.params;
 
-  logger.info('Product deletion started', { 
+  logger.info('Product deletion started', {
     productId: id,
     adminId: req.user._id,
-    requestId 
+    requestId
   });
 
   logger.startTimer('product-deletion', requestId);
 
   const product = await Product.findById(id);
-  
+
   if (!product) {
     logger.endTimer('product-deletion', requestId, { result: 'not-found' });
     throw new AppError('Product not found', 404, ERROR_TYPES.NOT_FOUND);
@@ -389,7 +389,7 @@ const deleteProduct = asyncHandler(async (req, res, next) => {
       activeBookings,
       requestId
     });
-    
+
     logger.endTimer('product-deletion', requestId, { result: 'active-bookings' });
     throw new AppError(
       `Cannot delete product with ${activeBookings} active bookings`,
@@ -404,11 +404,11 @@ const deleteProduct = asyncHandler(async (req, res, next) => {
   // Clear product list cache
   productListCache.clear();
 
-  logger.info('Product deleted successfully', { 
+  logger.info('Product deleted successfully', {
     productId: id,
     name: product.name,
     adminId: req.user._id,
-    requestId 
+    requestId
   });
 
   logger.endTimer('product-deletion', requestId, { result: 'success' });
@@ -436,15 +436,15 @@ const getProductStats = asyncHandler(async (req, res, next) => {
     revenueByProduct
   ] = await Promise.all([
     Product.countDocuments(),
-    
+
     Product.countDocuments({ stock: { $gt: 0 } }),
-    
+
     Product.countDocuments({ stock: 0 }),
-    
+
     RentalOrder.aggregate([
       { $match: { status: { $ne: 'cancelled' } } },
-      { 
-        $group: { 
+      {
+        $group: {
           _id: '$product',
           totalBookings: { $sum: 1 },
           totalRevenue: { $sum: '$totalPrice' }
@@ -470,11 +470,11 @@ const getProductStats = asyncHandler(async (req, res, next) => {
         }
       }
     ]),
-    
+
     RentalOrder.aggregate([
       { $match: { status: { $ne: 'cancelled' } } },
-      { 
-        $group: { 
+      {
+        $group: {
           _id: '$product',
           totalRevenue: { $sum: '$totalPrice' }
         }
@@ -503,7 +503,7 @@ const getProductStats = asyncHandler(async (req, res, next) => {
     totalProducts,
     availableProducts,
     outOfStockProducts,
-    utilizationRate: totalProducts > 0 ? 
+    utilizationRate: totalProducts > 0 ?
       Math.round(((totalProducts - outOfStockProducts) / totalProducts) * 100) : 0,
     mostBookedProducts,
     topRevenueProducts: revenueByProduct.slice(0, 5)
