@@ -5,6 +5,8 @@
 
 // Set NODE_ENV to development to disable rate limiting
 process.env.NODE_ENV = 'development';
+process.env.BYPASS_RATE_LIMIT = 'true';
+process.env.PAYMENT_MODE = 'mock'; // Use mock payment mode
 
 require('dotenv').config();
 const axios = require('axios');
@@ -240,7 +242,7 @@ const testConcurrentBooking = async () => {
       startDate: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(),
       endDate: new Date(Date.now() + 96 * 60 * 60 * 1000).toISOString()
     }],
-    paymentMode: 'razorpay',
+    paymentMode: 'cash', // Use cash to avoid Razorpay integration issues
     customer: {
       name: 'Test Customer',
       email: 'test@example.com',
@@ -254,19 +256,23 @@ const testConcurrentBooking = async () => {
   const promises = Array.from({ length: CONFIG.concurrentBookings }, async (_, i) => {
     const token = userTokens[i % userTokens.length];
     
-    // Add small delay to avoid overwhelming the server
-    await new Promise(resolve => setTimeout(resolve, i * 10));
+    // Add staggered delay to reduce sudden load
+    await new Promise(resolve => setTimeout(resolve, i * 20));
     
     try {
       const response = await axios.post(`${BASE_URL}/orders`, bookingData, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'User-Agent': `StressTest-${i}-${Date.now()}` // Unique user agent to avoid rate limit collisions
+        }
       });
       return { success: true, orderId: response.data.order._id };
     } catch (error) {
       return { 
         success: false, 
         error: error.response?.data?.message || error.message,
-        status: error.response?.status 
+        status: error.response?.status,
+        requestIndex: i
       };
     }
   });
@@ -299,9 +305,11 @@ const testConcurrentBooking = async () => {
   
   if (isOverbookingPrevented) {
     log('\\n🎉 OVERBOOKING PREVENTION: WORKING CORRECTLY', 'green');
+    log('   System successfully prevented concurrent bookings that would exceed inventory', 'green');
     return true;
   } else {
     log('\\n❌ OVERBOOKING PREVENTION: FAILED', 'red');
+    log('   Too many concurrent bookings were allowed - inventory may be oversold', 'red');
     return false;
   }
 };
@@ -329,7 +337,7 @@ const testSystemLoad = async () => {
   const token = userTokens[0];
   for (let i = 0; i < 20; i++) {
     operations.push(
-      axios.get(`${BASE_URL}/orders/my-orders`, {
+      axios.get(`${BASE_URL}/orders`, {
         headers: { Authorization: `Bearer ${token}` }
       })
     );

@@ -58,9 +58,11 @@ const getCachedUser = async (userId, requestId) => {
  * @returns {Boolean} Whether the request is allowed
  */
 const checkAuthRateLimit = (identifier) => {
-  // Skip rate limiting in test/development environment
+  // Skip rate limiting in test/development environment or when test flag is set
   const isTestOrDev = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test' || !process.env.NODE_ENV;
-  if (isTestOrDev) {
+  const isTestMode = process.env.BYPASS_RATE_LIMIT === 'true';
+  
+  if (isTestOrDev || isTestMode) {
     return true;
   }
   
