@@ -1,25 +1,25 @@
 const express = require('express');
 const { authMiddleware } = require('../middleware/auth.middleware');
 const { validateRegister, validateLogin } = require('../middleware/validate.middleware');
-const { 
-  register, 
-  login, 
-  getProfile, 
-  updateProfile, 
+const {
+  register,
+  login,
+  getProfile,
+  updateProfile,
   changePassword,
-  logout 
+  logout
 } = require('../controllers/auth.controller');
 
 const router = express.Router();
 
 // POST /api/auth/register - Register new user
-router.post('/register', 
+router.post('/register',
   validateRegister,
   register
 );
 
 // POST /api/auth/login - Login user
-router.post('/login', 
+router.post('/login',
   validateLogin,
   login
 );

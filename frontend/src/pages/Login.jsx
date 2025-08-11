@@ -47,6 +47,8 @@ export default function Login() {
     setLoading(true);
     setError("");
 
+    console.log("Login: Form data being sent:", formData);
+
     try {
       const result = await login(formData);
       console.log("Login result:", result);
@@ -56,6 +58,7 @@ export default function Login() {
         navigate(from, { replace: true });
       } else {
         console.log("Login failed:", result.error);
+        console.log("Login validation details:", result.details);
         setError(result.error || "Login failed");
       }
     } catch (error) {

@@ -79,9 +79,11 @@ export const AuthProvider = ({ children }) => {
       return { success: true, data: response };
     } catch (error) {
       console.error("AuthContext: Login error:", error);
+      console.error("AuthContext: Full error response:", error.response?.data);
       return {
         success: false,
         error: error.response?.data?.message || error.message || "Login failed",
+        details: error.response?.data?.details || null,
       };
     }
   };
