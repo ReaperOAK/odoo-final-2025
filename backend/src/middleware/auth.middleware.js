@@ -214,6 +214,46 @@ const authMiddleware = async (req, res, next) => {
 };
 
 /**
+ * Role-based access control middleware
+ */
+const requireRoles = (allowedRoles) => {
+  return (req, res, next) => {
+    const requestId = req.requestId || 'unknown';
+    
+    if (!req.user) {
+      logger.error('Role check failed - No user in request', { requestId });
+      return next(new AppError('Authentication required', 401, ERROR_TYPES.AUTH));
+    }
+    
+    // Check if user has any of the allowed roles
+    const userRoles = req.user.roles || [req.user.role]; // Support both roles array and single role
+    const hasRequiredRole = allowedRoles.some(role => userRoles.includes(role));
+    
+    if (!hasRequiredRole) {
+      logger.warn('Role access denied', {
+        requestId,
+        userId: req.user._id,
+        userRoles: userRoles,
+        requiredRoles: allowedRoles,
+        url: req.originalUrl
+      });
+      
+      return next(new AppError(`Access denied. Required roles: ${allowedRoles.join(', ')}`, 403, ERROR_TYPES.PERMISSION));
+    }
+    
+    logger.debug('Role access granted', {
+      requestId,
+      userId: req.user._id,
+      userRoles: userRoles,
+      requiredRoles: allowedRoles,
+      url: req.originalUrl
+    });
+    
+    next();
+  };
+};
+
+/**
  * Admin role verification middleware
  */
 const isAdmin = (req, res, next) => {
@@ -323,8 +363,10 @@ const clearAuthRateLimit = (identifier = null) => {
 };
 
 module.exports = { 
+  verifyToken: authMiddleware,  // Add alias for consistency with routes
   authMiddleware, 
   isAdmin, 
+  requireRoles,
   optionalAuth,
   isOwnerOrAdmin,
   clearUserCache,
