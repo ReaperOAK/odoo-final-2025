@@ -1,0 +1,8 @@
+---
+applyTo: '**'
+---
+use ; instead of && when running multiple commands in a single line.
+always go to the exact directory where the command is to be run.
+use the command `cd` to change directories. 
+we are on windows, so use commands that are compatible with windows.
+
