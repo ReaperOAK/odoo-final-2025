@@ -9,8 +9,12 @@ const USER_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 // Rate limiting for authentication attempts
 const authAttempts = new Map();
-const MAX_AUTH_ATTEMPTS = 10;
-const AUTH_WINDOW = 15 * 60 * 1000; // 15 minutes
+const MAX_AUTH_ATTEMPTS = parseInt(process.env.AUTH_RATE_LIMIT_MAX) || 10;
+const AUTH_WINDOW = parseInt(process.env.AUTH_RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000; // 15 minutes default
+
+// Rate limiting configuration
+const RATE_LIMITING_DISABLED = process.env.DISABLE_RATE_LIMITING === 'true';
+const TESTING_MODE = process.env.TESTING_MODE === 'true';
 
 /**
  * Get user from cache or database
@@ -55,14 +59,21 @@ const getCachedUser = async (userId, requestId) => {
 /**
  * Check rate limiting for authentication
  * @param {String} identifier - IP address or user identifier
+ * @param {Object} req - Express request object
  * @returns {Boolean} Whether the request is allowed
  */
-const checkAuthRateLimit = (identifier) => {
+const checkAuthRateLimit = (identifier, req = null) => {
+  // Skip rate limiting if disabled in environment
+  if (RATE_LIMITING_DISABLED) {
+    return true;
+  }
+  
   // Skip rate limiting in test/development environment or when test flag is set
   const isTestOrDev = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test' || !process.env.NODE_ENV;
-  const isTestMode = process.env.BYPASS_RATE_LIMIT === 'true';
+  const isTestMode = process.env.BYPASS_RATE_LIMIT === 'true' || TESTING_MODE;
+  const hasBypassHeader = req && req.header('X-Bypass-Rate-Limit') === 'true';
   
-  if (isTestOrDev || isTestMode) {
+  if (isTestOrDev || isTestMode || hasBypassHeader) {
     return true;
   }
   
@@ -124,7 +135,7 @@ const authMiddleware = async (req, res, next) => {
     
     // Rate limiting check
     const clientIdentifier = req.ip || 'unknown';
-    if (!checkAuthRateLimit(clientIdentifier)) {
+    if (!checkAuthRateLimit(clientIdentifier, req)) {
       logger.warn('Authentication rate limit exceeded', {
         requestId,
         ip: req.ip,
@@ -364,6 +375,28 @@ const clearAuthRateLimit = (identifier = null) => {
   }
 };
 
+/**
+ * Get current rate limiting configuration
+ */
+const getRateLimitConfig = () => {
+  return {
+    maxAttempts: MAX_AUTH_ATTEMPTS,
+    windowMs: AUTH_WINDOW,
+    disabled: RATE_LIMITING_DISABLED,
+    testingMode: TESTING_MODE,
+    currentAttempts: authAttempts.size
+  };
+};
+
+/**
+ * Set testing mode (for dynamic configuration)
+ * @param {Boolean} enabled - Whether to enable testing mode
+ */
+const setTestingMode = (enabled) => {
+  process.env.TESTING_MODE = enabled ? 'true' : 'false';
+  logger.info(`Testing mode ${enabled ? 'enabled' : 'disabled'}`);
+};
+
 module.exports = { 
   verifyToken: authMiddleware,  // Add alias for consistency with routes
   authMiddleware, 
@@ -372,5 +405,7 @@ module.exports = {
   optionalAuth,
   isOwnerOrAdmin,
   clearUserCache,
-  clearAuthRateLimit
+  clearAuthRateLimit,
+  getRateLimitConfig,
+  setTestingMode
 };

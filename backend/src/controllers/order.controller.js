@@ -157,11 +157,18 @@ class OrderController {
       });
       
       // Enhanced error details for debugging
-      const isDevelopment = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
+      const isDevelopment = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV || process.env.TESTING_MODE === 'true';
       const errorDetails = {
         success: false,
         message: 'Failed to create order',
-        error: isDevelopment ? (error.message || error.toString()) : 'Internal server error'
+        error: isDevelopment ? (error.message || error.toString()) : 'Internal server error',
+        // Temporary: Show full error details in development/testing
+        ...(isDevelopment && {
+          fullError: error.message,
+          stack: error.stack,
+          nodeEnv: process.env.NODE_ENV,
+          testingMode: process.env.TESTING_MODE
+        })
       };
       
       // Add additional debug info in development
