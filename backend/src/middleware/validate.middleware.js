@@ -110,7 +110,9 @@ const validateAvailability = [
     .isISO8601()
     .withMessage('Start time must be a valid ISO 8601 date')
     .custom((value) => {
-      if (new Date(value) <= new Date()) {
+      // Allow dates within 1 minute of current time to account for timezone differences
+      const oneMinuteAgo = new Date(Date.now() - 60 * 1000);
+      if (new Date(value) <= oneMinuteAgo) {
         throw new Error('Start time must be in the future');
       }
       return true;
