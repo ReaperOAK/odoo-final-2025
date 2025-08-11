@@ -156,11 +156,25 @@ class OrderController {
         body: JSON.stringify(req.body)
       });
       
-      res.status(500).json({
+      // Enhanced error details for debugging
+      const isDevelopment = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
+      const errorDetails = {
         success: false,
         message: 'Failed to create order',
-        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-      });
+        error: isDevelopment ? (error.message || error.toString()) : 'Internal server error'
+      };
+      
+      // Add additional debug info in development
+      if (isDevelopment) {
+        errorDetails.debug = {
+          nodeEnv: process.env.NODE_ENV,
+          errorType: error.constructor.name,
+          errorStack: error.stack?.split('\n').slice(0, 5), // First 5 lines of stack
+          timestamp: new Date().toISOString()
+        };
+      }
+      
+      res.status(500).json(errorDetails);
     }
   }
   

@@ -12,6 +12,7 @@ class ReservationService {
    */
   static async createOrderAndReserve(orderData, options = {}) {
     const session = await mongoose.startSession();
+    let orderResult = null;
     
     try {
       await session.withTransaction(async () => {
@@ -171,6 +172,7 @@ class ReservationService {
             totalAmount,
             platformCommission: totalAmount * 0.05,
             hostEarnings: totalAmount * 0.95,
+            lenderEarnings: totalAmount * 0.95, // Same as hostEarnings for P2P marketplace
             pendingAmount: totalAmount
           },
           status: 'draft',
@@ -180,7 +182,7 @@ class ReservationService {
             currency: 'INR'
           },
           customer: orderData.customer || {},
-          host: orderData.host || {},
+          lender: orderData.lender || {}, // Use lender instead of host
           metadata: {
             source: 'api',
             ...metadata
@@ -248,8 +250,8 @@ class ReservationService {
           });
         }
         
-        // Return complete order data
-        return {
+        // Store the order data we want to return (outside transaction callback)
+        orderResult = {
           success: true,
           order: await Order.findById(order._id)
             .populate('customerId', 'name email phone')
@@ -258,7 +260,7 @@ class ReservationService {
             .populate('lineItems.reservationId')
             .session(session),
           reservations,
-          totalAmount,
+          totalAmount: totalAmount,
           message: 'Order and reservations created successfully'
         };
       }, {
@@ -269,9 +271,8 @@ class ReservationService {
       
       logger.info('Transaction completed successfully');
       
-      // The return value from withTransaction is the return value of the callback
-      const result = await session.commitTransaction();
-      return result;
+      // Return the stored order result
+      return orderResult;
       
     } catch (error) {
       logger.error('Transaction failed', { 
