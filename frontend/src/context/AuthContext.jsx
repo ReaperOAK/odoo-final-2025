@@ -93,11 +93,11 @@ export const AuthProvider = ({ children }) => {
   const updateProfile = async (profileData) => {
     try {
       const response = await authAPI.updateProfile(profileData);
-      
+
       if (!response) {
         return {
           success: false,
-          error: "No response from server"
+          error: "No response from server",
         };
       }
 
@@ -110,7 +110,8 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.message || error.message || "Update failed",
+        error:
+          error.response?.data?.message || error.message || "Update failed",
       };
     }
   };
@@ -118,11 +119,11 @@ export const AuthProvider = ({ children }) => {
   const changePassword = async (passwordData) => {
     try {
       const response = await authAPI.changePassword(passwordData);
-      
+
       if (!response) {
         return {
           success: false,
-          error: "No response from server"
+          error: "No response from server",
         };
       }
 
@@ -130,7 +131,10 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.message || error.message || "Password change failed",
+        error:
+          error.response?.data?.message ||
+          error.message ||
+          "Password change failed",
       };
     }
   };
