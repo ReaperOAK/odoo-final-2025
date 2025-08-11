@@ -203,6 +203,72 @@ export const paymentsAPI = {
       console.error("Error fetching platform fees breakdown:", error);
       throw error;
     }
+  },
+
+  // Get all payouts (admin)
+  getPayouts: async (params = {}) => {
+    try {
+      const queryParams = new URLSearchParams();
+      if (params.status) queryParams.append('status', params.status);
+      if (params.hostId) queryParams.append('hostId', params.hostId);
+      if (params.startDate) queryParams.append('startDate', params.startDate);
+      if (params.endDate) queryParams.append('endDate', params.endDate);
+      if (params.page) queryParams.append('page', params.page);
+      if (params.limit) queryParams.append('limit', params.limit);
+
+      const queryString = queryParams.toString();
+      const url = queryString ? `/payouts?${queryString}` : '/payouts';
+
+      const response = await api.get(url);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching payouts:", error);
+      throw error;
+    }
+  },
+
+  // Process payout (admin)
+  processPayout: async (payoutId, processingData) => {
+    try {
+      const response = await api.patch(`/payouts/${payoutId}/process`, processingData);
+      return response.data;
+    } catch (error) {
+      console.error("Error processing payout:", error);
+      throw error;
+    }
+  },
+
+  // Get pending payouts
+  getPendingPayouts: async () => {
+    try {
+      const response = await api.get('/payouts?status=pending');
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching pending payouts:", error);
+      throw error;
+    }
+  },
+
+  // Process multiple payouts
+  processPayouts: async (payoutIds) => {
+    try {
+      const response = await api.post('/payouts/batch-process', { payoutIds });
+      return response.data;
+    } catch (error) {
+      console.error("Error processing payouts:", error);
+      throw error;
+    }
+  },
+
+  // Add funds to wallet
+  addFundsToWallet: async (amount) => {
+    try {
+      const response = await api.post('/payments/wallet/add-funds', { amount });
+      return response.data;
+    } catch (error) {
+      console.error("Error adding funds to wallet:", error);
+      throw error;
+    }
   }
 };
 

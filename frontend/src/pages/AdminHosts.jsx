@@ -47,8 +47,9 @@ export default function AdminHosts() {
     try {
       setLoading(true);
       const response = await adminAPI.getAllUsers({ role: "host" });
-      setHosts(response.users || []);
-      calculateStats(response.data.hosts);
+      const hostsData = response.users || response.data?.users || [];
+      setHosts(hostsData);
+      calculateStats(hostsData);
       setError(null);
     } catch (err) {
       console.error("Error fetching hosts:", err);
@@ -72,7 +73,8 @@ export default function AdminHosts() {
 
   const handleVerificationUpdate = async (hostId, status, reason = "") => {
     try {
-      await updateHostVerification(hostId, { status, reason });
+      const action = status === "approved" ? "verify" : "suspend";
+      await adminAPI.updateUserStatus(hostId, action, reason);
 
       setHosts((prev) =>
         prev.map((host) =>
@@ -101,7 +103,7 @@ export default function AdminHosts() {
     }
 
     try {
-      await suspendHost(hostId, { reason });
+      await adminAPI.updateUserStatus(hostId, "suspended", reason);
 
       setHosts((prev) =>
         prev.map((host) =>

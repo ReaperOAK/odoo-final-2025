@@ -137,7 +137,42 @@ export const hostsAPI = {
       console.error("Error fetching verification status:", error);
       throw error;
     }
+  },
+
+  // Get host statistics
+  getHostStats: async () => {
+    try {
+      const response = await api.get('/host/stats');
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching host stats:", error);
+      throw error;
+    }
+  },
+
+  // Update host profile
+  updateHostProfile: async (profileData) => {
+    try {
+      const response = await api.patch('/auth/profile', profileData);
+      return response.data;
+    } catch (error) {
+      console.error("Error updating host profile:", error);
+      throw error;
+    }
   }
 };
+
+// Export individual functions for convenience
+export const getHostDashboard = hostsAPI.getHostDashboard;
+export const getHostAnalytics = hostsAPI.getHostAnalytics;
+export const getHostEarnings = hostsAPI.getHostEarnings;
+export const getHostListings = hostsAPI.getHostListings;
+export const getUpcomingEvents = hostsAPI.getUpcomingEvents;
+export const getHostProfile = hostsAPI.getHostProfile;
+export const updateHostSettings = hostsAPI.updateHostSettings;
+export const requestVerification = hostsAPI.requestVerification;
+export const getVerificationStatus = hostsAPI.getVerificationStatus;
+export const getHostStats = hostsAPI.getHostStats;
+export const updateHostProfile = hostsAPI.updateHostProfile;
 
 export default hostsAPI;

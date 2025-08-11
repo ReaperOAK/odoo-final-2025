@@ -35,26 +35,15 @@ export const adminAPI = {
   },
 
   // Update user status (activate/deactivate/suspend)
-  updateUserStatus: async (userId, status, reason = '') => {
+  updateUserStatus: async (userId, action, reason = '') => {
     try {
-      const response = await api.patch(`/admin/users/${userId}/status`, {
-        status,
+      const response = await api.put(`/admin/users/${userId}/status`, {
+        action,
         reason
       });
       return response.data;
     } catch (error) {
       console.error("Error updating user status:", error);
-      throw error;
-    }
-  },
-
-  // Verify host
-  verifyHost: async (userId, verificationData) => {
-    try {
-      const response = await api.patch(`/admin/users/${userId}/verification`, verificationData);
-      return response.data;
-    } catch (error) {
-      console.error("Error verifying host:", error);
       throw error;
     }
   },
@@ -196,7 +185,7 @@ export const adminAPI = {
       if (params.limit) queryParams.append('limit', params.limit);
 
       const queryString = queryParams.toString();
-      const url = queryString ? `/admin/payouts?${queryString}` : '/admin/payouts';
+      const url = queryString ? `/payouts?${queryString}` : '/payouts';
 
       const response = await api.get(url);
       return response.data;
@@ -209,7 +198,7 @@ export const adminAPI = {
   // Process payout
   processPayout: async (payoutId, processingData) => {
     try {
-      const response = await api.patch(`/admin/payouts/${payoutId}/process`, processingData);
+      const response = await api.post(`/payouts/${payoutId}/process`, processingData);
       return response.data;
     } catch (error) {
       console.error("Error processing payout:", error);
@@ -220,7 +209,7 @@ export const adminAPI = {
   // Reject payout
   rejectPayout: async (payoutId, reason) => {
     try {
-      const response = await api.patch(`/admin/payouts/${payoutId}/reject`, { reason });
+      const response = await api.post(`/payouts/${payoutId}/reject`, { reason });
       return response.data;
     } catch (error) {
       console.error("Error rejecting payout:", error);
