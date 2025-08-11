@@ -1,63 +1,75 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
-import { EyeIcon, EyeSlashIcon, LockClosedIcon, EnvelopeIcon, UserIcon, CheckIcon } from '@heroicons/react/24/outline'
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import {
+  EyeIcon,
+  EyeSlashIcon,
+  LockClosedIcon,
+  EnvelopeIcon,
+  UserIcon,
+  CheckIcon,
+} from "@heroicons/react/24/outline";
 
 export default function Register() {
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: ''
-  })
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const { register } = useAuth()
-  const navigate = useNavigate()
+  const { register } = useAuth();
+  const navigate = useNavigate();
 
   const handleChange = (e) => {
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
-    })
-  }
+      [e.target.name]: e.target.value,
+    });
+  };
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
+    e.preventDefault();
+    setLoading(true);
+    setError("");
 
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match')
-      setLoading(false)
-      return
+      setError("Passwords do not match");
+      setLoading(false);
+      return;
     }
 
     if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters long')
-      setLoading(false)
-      return
+      setError("Password must be at least 6 characters long");
+      setLoading(false);
+      return;
     }
 
-    const { confirmPassword, ...registerData } = formData
-    const result = await register(registerData)
-    
+    const { confirmPassword, ...registerData } = formData;
+    const result = await register(registerData);
+
     if (result.success) {
-      navigate('/')
+      navigate("/");
     } else {
-      setError(result.error)
+      setError(result.error);
     }
-    
-    setLoading(false)
-  }
+
+    setLoading(false);
+  };
 
   const passwordRequirements = [
-    { label: 'At least 6 characters', met: formData.password.length >= 6 },
-    { label: 'Passwords match', met: formData.password === formData.confirmPassword && formData.confirmPassword !== '' }
-  ]
+    { label: "At least 6 characters", met: formData.password.length >= 6 },
+    {
+      label: "Passwords match",
+      met:
+        formData.password === formData.confirmPassword &&
+        formData.confirmPassword !== "",
+    },
+  ];
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -69,8 +81,11 @@ export default function Register() {
           Create your account
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
-          Or{' '}
-          <Link to="/login" className="font-medium text-brand hover:text-blue-700">
+          Or{" "}
+          <Link
+            to="/login"
+            className="font-medium text-brand hover:text-blue-700"
+          >
             sign in to your existing account
           </Link>
         </p>
@@ -95,7 +110,10 @@ export default function Register() {
             )}
 
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="name"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Full Name
               </label>
               <div className="mt-1 relative">
@@ -117,7 +135,10 @@ export default function Register() {
             </div>
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Email address
               </label>
               <div className="mt-1 relative">
@@ -139,7 +160,10 @@ export default function Register() {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Password
               </label>
               <div className="mt-1 relative">
@@ -149,7 +173,7 @@ export default function Register() {
                 <input
                   id="password"
                   name="password"
-                  type={showPassword ? 'text' : 'password'}
+                  type={showPassword ? "text" : "password"}
                   autoComplete="new-password"
                   required
                   className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-brand focus:border-brand"
@@ -174,7 +198,10 @@ export default function Register() {
             </div>
 
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="confirmPassword"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Confirm Password
               </label>
               <div className="mt-1 relative">
@@ -184,7 +211,7 @@ export default function Register() {
                 <input
                   id="confirmPassword"
                   name="confirmPassword"
-                  type={showConfirmPassword ? 'text' : 'password'}
+                  type={showConfirmPassword ? "text" : "password"}
                   autoComplete="new-password"
                   required
                   className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-brand focus:border-brand"
@@ -211,12 +238,22 @@ export default function Register() {
             {/* Password Requirements */}
             {(formData.password || formData.confirmPassword) && (
               <div className="bg-gray-50 rounded-md p-4">
-                <h4 className="text-sm font-medium text-gray-900 mb-2">Password requirements:</h4>
+                <h4 className="text-sm font-medium text-gray-900 mb-2">
+                  Password requirements:
+                </h4>
                 <ul className="space-y-1">
                   {passwordRequirements.map((req, index) => (
                     <li key={index} className="flex items-center text-sm">
-                      <CheckIcon className={`h-4 w-4 mr-2 ${req.met ? 'text-green-500' : 'text-gray-300'}`} />
-                      <span className={req.met ? 'text-green-700' : 'text-gray-500'}>{req.label}</span>
+                      <CheckIcon
+                        className={`h-4 w-4 mr-2 ${
+                          req.met ? "text-green-500" : "text-gray-300"
+                        }`}
+                      />
+                      <span
+                        className={req.met ? "text-green-700" : "text-gray-500"}
+                      >
+                        {req.label}
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -226,7 +263,9 @@ export default function Register() {
             <div>
               <button
                 type="submit"
-                disabled={loading || !passwordRequirements.every(req => req.met)}
+                disabled={
+                  loading || !passwordRequirements.every((req) => req.met)
+                }
                 className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-brand hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {loading ? (
@@ -235,7 +274,7 @@ export default function Register() {
                     Creating account...
                   </div>
                 ) : (
-                  'Create account'
+                  "Create account"
                 )}
               </button>
             </div>
@@ -246,7 +285,9 @@ export default function Register() {
                   <div className="w-full border-t border-gray-300" />
                 </div>
                 <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-white text-gray-500">Already have an account?</span>
+                  <span className="px-2 bg-white text-gray-500">
+                    Already have an account?
+                  </span>
                 </div>
               </div>
 
@@ -263,5 +304,5 @@ export default function Register() {
         </div>
       </div>
     </div>
-  )
+  );
 }

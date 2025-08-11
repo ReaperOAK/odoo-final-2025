@@ -1,52 +1,57 @@
-import { useState } from 'react'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
-import { EyeIcon, EyeSlashIcon, LockClosedIcon, EnvelopeIcon } from '@heroicons/react/24/outline'
+import { useState } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import {
+  EyeIcon,
+  EyeSlashIcon,
+  LockClosedIcon,
+  EnvelopeIcon,
+} from "@heroicons/react/24/outline";
 
 export default function Login() {
   const [formData, setFormData] = useState({
-    email: '',
-    password: ''
-  })
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
+    email: "",
+    password: "",
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
-  const { login } = useAuth()
-  const navigate = useNavigate()
-  const location = useLocation()
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const from = location.state?.from?.pathname || '/'
+  const from = location.state?.from?.pathname || "/";
 
   const handleChange = (e) => {
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
-    })
-  }
+      [e.target.name]: e.target.value,
+    });
+  };
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
+    e.preventDefault();
+    setLoading(true);
+    setError("");
 
-    const result = await login(formData)
-    
+    const result = await login(formData);
+
     if (result.success) {
-      navigate(from, { replace: true })
+      navigate(from, { replace: true });
     } else {
-      setError(result.error)
+      setError(result.error);
     }
-    
-    setLoading(false)
-  }
+
+    setLoading(false);
+  };
 
   const fillDemoCredentials = (type) => {
     setFormData({
-      email: type === 'admin' ? 'admin@demo.com' : 'user@demo.com',
-      password: 'p@ssw0rd'
-    })
-  }
+      email: type === "admin" ? "admin@demo.com" : "user@demo.com",
+      password: "p@ssw0rd",
+    });
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -58,8 +63,11 @@ export default function Login() {
           Sign in to your account
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
-          Or{' '}
-          <Link to="/register" className="font-medium text-brand hover:text-blue-700">
+          Or{" "}
+          <Link
+            to="/register"
+            className="font-medium text-brand hover:text-blue-700"
+          >
             create a new account
           </Link>
         </p>
@@ -73,14 +81,14 @@ export default function Login() {
             <div className="flex space-x-2">
               <button
                 type="button"
-                onClick={() => fillDemoCredentials('admin')}
+                onClick={() => fillDemoCredentials("admin")}
                 className="flex-1 text-xs bg-blue-50 text-blue-700 px-3 py-2 rounded-md hover:bg-blue-100 transition-colors"
               >
                 Admin Demo
               </button>
               <button
                 type="button"
-                onClick={() => fillDemoCredentials('user')}
+                onClick={() => fillDemoCredentials("user")}
                 className="flex-1 text-xs bg-green-50 text-green-700 px-3 py-2 rounded-md hover:bg-green-100 transition-colors"
               >
                 User Demo
@@ -105,7 +113,10 @@ export default function Login() {
             )}
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Email address
               </label>
               <div className="mt-1 relative">
@@ -127,7 +138,10 @@ export default function Login() {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Password
               </label>
               <div className="mt-1 relative">
@@ -137,7 +151,7 @@ export default function Login() {
                 <input
                   id="password"
                   name="password"
-                  type={showPassword ? 'text' : 'password'}
+                  type={showPassword ? "text" : "password"}
                   autoComplete="current-password"
                   required
                   className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-brand focus:border-brand"
@@ -169,13 +183,19 @@ export default function Login() {
                   type="checkbox"
                   className="h-4 w-4 text-brand focus:ring-brand border-gray-300 rounded"
                 />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
+                <label
+                  htmlFor="remember-me"
+                  className="ml-2 block text-sm text-gray-900"
+                >
                   Remember me
                 </label>
               </div>
 
               <div className="text-sm">
-                <a href="#" className="font-medium text-brand hover:text-blue-700">
+                <a
+                  href="#"
+                  className="font-medium text-brand hover:text-blue-700"
+                >
                   Forgot your password?
                 </a>
               </div>
@@ -193,7 +213,7 @@ export default function Login() {
                     Signing in...
                   </div>
                 ) : (
-                  'Sign in'
+                  "Sign in"
                 )}
               </button>
             </div>
@@ -204,7 +224,9 @@ export default function Login() {
                   <div className="w-full border-t border-gray-300" />
                 </div>
                 <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-white text-gray-500">New to RentEasy?</span>
+                  <span className="px-2 bg-white text-gray-500">
+                    New to RentEasy?
+                  </span>
                 </div>
               </div>
 
@@ -221,5 +243,5 @@ export default function Login() {
         </div>
       </div>
     </div>
-  )
+  );
 }

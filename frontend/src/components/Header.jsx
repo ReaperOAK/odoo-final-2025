@@ -1,34 +1,52 @@
-import { useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
-import { Bars3Icon, XMarkIcon, UserIcon, ShoppingBagIcon, Cog6ToothIcon } from '@heroicons/react/24/outline'
+import { useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import {
+  Bars3Icon,
+  XMarkIcon,
+  UserIcon,
+  ShoppingBagIcon,
+  Cog6ToothIcon,
+} from "@heroicons/react/24/outline";
 
 export default function Header() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const { user, logout, isAdmin } = useAuth()
-  const location = useLocation()
-  const navigate = useNavigate()
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { user, logout, isAdmin } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const handleLogout = () => {
-    logout()
-    navigate('/')
-    setIsMenuOpen(false)
-  }
+    logout();
+    navigate("/");
+    setIsMenuOpen(false);
+  };
 
-  const isActive = (path) => location.pathname === path
+  const isActive = (path) => location.pathname === path;
 
   const navigation = [
-    { name: 'Home', href: '/', icon: null },
-    { name: 'Products', href: '/products', icon: null },
-  ]
+    { name: "Home", href: "/", icon: null },
+    { name: "Products", href: "/products", icon: null },
+  ];
 
-  const userNavigation = user ? [
-    { name: 'My Bookings', href: '/my-bookings', icon: ShoppingBagIcon },
-    ...(isAdmin() ? [
-      { name: 'Admin Products', href: '/admin/products', icon: Cog6ToothIcon },
-      { name: 'Admin Rentals', href: '/admin/rentals', icon: Cog6ToothIcon },
-    ] : []),
-  ] : []
+  const userNavigation = user
+    ? [
+        { name: "My Bookings", href: "/my-bookings", icon: ShoppingBagIcon },
+        ...(isAdmin()
+          ? [
+              {
+                name: "Admin Products",
+                href: "/admin/products",
+                icon: Cog6ToothIcon,
+              },
+              {
+                name: "Admin Rentals",
+                href: "/admin/rentals",
+                icon: Cog6ToothIcon,
+              },
+            ]
+          : []),
+      ]
+    : [];
 
   return (
     <header className="bg-white shadow-sm border-b">
@@ -40,7 +58,9 @@ export default function Header() {
               <div className="w-8 h-8 bg-brand rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-lg">R</span>
               </div>
-              <span className="ml-2 text-xl font-bold text-gray-900">RentEasy</span>
+              <span className="ml-2 text-xl font-bold text-gray-900">
+                RentEasy
+              </span>
             </Link>
           </div>
 
@@ -52,8 +72,8 @@ export default function Header() {
                 to={item.href}
                 className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                   isActive(item.href)
-                    ? 'text-brand bg-brand-50'
-                    : 'text-gray-600 hover:text-brand hover:bg-gray-50'
+                    ? "text-brand bg-brand-50"
+                    : "text-gray-600 hover:text-brand hover:bg-gray-50"
                 }`}
               >
                 {item.name}
@@ -71,8 +91,8 @@ export default function Header() {
                     to={item.href}
                     className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                       isActive(item.href)
-                        ? 'text-brand bg-brand-50'
-                        : 'text-gray-600 hover:text-brand hover:bg-gray-50'
+                        ? "text-brand bg-brand-50"
+                        : "text-gray-600 hover:text-brand hover:bg-gray-50"
                     }`}
                   >
                     {item.icon && <item.icon className="w-4 h-4 mr-1.5" />}
@@ -134,14 +154,14 @@ export default function Header() {
                   onClick={() => setIsMenuOpen(false)}
                   className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
                     isActive(item.href)
-                      ? 'text-brand bg-brand-50'
-                      : 'text-gray-600 hover:text-brand hover:bg-gray-50'
+                      ? "text-brand bg-brand-50"
+                      : "text-gray-600 hover:text-brand hover:bg-gray-50"
                   }`}
                 >
                   {item.name}
                 </Link>
               ))}
-              
+
               {user ? (
                 <>
                   {userNavigation.map((item) => (
@@ -151,8 +171,8 @@ export default function Header() {
                       onClick={() => setIsMenuOpen(false)}
                       className={`flex items-center px-3 py-2 rounded-md text-base font-medium transition-colors ${
                         isActive(item.href)
-                          ? 'text-brand bg-brand-50'
-                          : 'text-gray-600 hover:text-brand hover:bg-gray-50'
+                          ? "text-brand bg-brand-50"
+                          : "text-gray-600 hover:text-brand hover:bg-gray-50"
                       }`}
                     >
                       {item.icon && <item.icon className="w-5 h-5 mr-2" />}
@@ -195,5 +215,5 @@ export default function Header() {
         )}
       </div>
     </header>
-  )
+  );
 }
