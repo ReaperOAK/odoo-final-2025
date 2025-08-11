@@ -43,6 +43,7 @@ export default function ProductDetail() {
         product: bookingData.productId,
         startDate: bookingData.startDate,
         endDate: bookingData.endDate,
+        quantity: bookingData.quantity,
         totalPrice: bookingData.totalPrice,
       });
 

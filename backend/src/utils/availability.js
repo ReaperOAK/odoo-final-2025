@@ -91,8 +91,29 @@ const checkAvailability = async (productId, startTime, endTime, qty = 1, request
       throw new AppError('End time must be after start time', 400, ERROR_TYPES.VALIDATION);
     }
     
-    if (start <= new Date()) {
-      throw new AppError('Start time must be in the future', 400, ERROR_TYPES.VALIDATION);
+    // Allow dates within 1 minute of current time to account for timezone differences
+    const oneMinuteAgo = new Date(Date.now() - 60 * 1000);
+    if (start <= oneMinuteAgo) {
+      logger.info('Start time is in the past', { 
+        productId, 
+        startTime,
+        currentTime: new Date().toISOString(),
+        requestId 
+      });
+      
+      logger.endTimer('availability-check', requestId, { result: 'past-date' });
+      return {
+        isAvailable: false,
+        available: false,
+        availableStock: 0,
+        requestedQuantity: qty,
+        totalStock: product?.stock || 0,
+        reason: 'start_time_in_past',
+        timeSlot: {
+          start: start.toISOString(),
+          end: end.toISOString()
+        }
+      };
     }
     
     // Validate quantity
@@ -119,6 +140,7 @@ const checkAvailability = async (productId, startTime, endTime, qty = 1, request
       logger.endTimer('availability-check', requestId, { result: 'insufficient-stock' });
       return {
         isAvailable: false,
+        available: false, // Add for frontend compatibility
         availableStock: 0,
         requestedQuantity: qty,
         totalStock: product.stock,
@@ -173,6 +195,7 @@ const checkAvailability = async (productId, startTime, endTime, qty = 1, request
     
     const result = {
       isAvailable,
+      available: isAvailable, // Add for frontend compatibility
       availableStock,
       requestedQuantity: qty,
       totalStock: product.stock,

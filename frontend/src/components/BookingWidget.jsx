@@ -12,33 +12,48 @@ export default function BookingWidget({ product, onBook }) {
   const { user } = useAuth();
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [quantity, setQuantity] = useState(1); // NEW
+  const [quantity, setQuantity] = useState(1);
   const [isAvailable, setIsAvailable] = useState(null);
   const [price, setPrice] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Helper: format to proper ISO string
+  const formatToISO = (date) => {
+    if (!date) return null;
+    const d = new Date(date);
+    return isNaN(d) ? null : d.toISOString();
+  };
+
   useEffect(() => {
-    if (startDate && endDate && product._id) {
+    if (startDate && endDate && product?._id) {
       const timer = setTimeout(() => {
         checkAvailabilityAndPrice();
       }, 300);
       return () => clearTimeout(timer);
     }
-  }, [startDate, endDate, product._id, quantity]);
+  }, [startDate, endDate, product?._id, quantity]);
 
   const checkAvailabilityAndPrice = async () => {
+    const isoStart = formatToISO(startDate);
+    const isoEnd = formatToISO(endDate);
+
+    if (!isoStart || !isoEnd) {
+      setError("Invalid date selection");
+      return;
+    }
+
     try {
       setLoading(true);
       setError("");
 
       const [availabilityRes, priceRes] = await Promise.all([
-        rentalsAPI.checkAvailability(product._id, startDate, endDate, quantity),
-        rentalsAPI.calculatePrice(product._id, startDate, endDate)
+        rentalsAPI.checkAvailability(product._id, isoStart, isoEnd, quantity),
+        rentalsAPI.calculatePrice(product._id, isoStart, isoEnd),
       ]);
 
-      setIsAvailable(availabilityRes.data?.isAvailable);
-      setPrice(priceRes.data?.data);
+      setIsAvailable(availabilityRes.available);
+      setPrice(priceRes);
     } catch (err) {
       setError("Failed to check availability");
       console.error(err);
@@ -58,8 +73,8 @@ export default function BookingWidget({ product, onBook }) {
     }
     onBook({
       productId: product._id,
-      startDate,
-      endDate,
+      startDate: formatToISO(startDate),
+      endDate: formatToISO(endDate),
       quantity,
       totalPrice: price?.totalPrice,
     });
@@ -87,7 +102,6 @@ export default function BookingWidget({ product, onBook }) {
         className="mb-6"
       />
 
-      {/* Quantity selector */}
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Number of items
@@ -101,7 +115,6 @@ export default function BookingWidget({ product, onBook }) {
         />
       </div>
 
-      {/* Availability Status */}
       {loading && startDate && endDate && (
         <div className="mb-4 p-3 bg-gray-50 rounded-lg">
           <div className="flex items-center">
@@ -140,7 +153,6 @@ export default function BookingWidget({ product, onBook }) {
         </div>
       )}
 
-      {/* Price Breakdown */}
       {price && (
         <div className="mb-6 p-4 bg-gray-50 rounded-lg">
           <div className="flex items-center mb-3">
@@ -177,14 +189,12 @@ export default function BookingWidget({ product, onBook }) {
         </div>
       )}
 
-      {/* Error Message */}
       {error && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
           <p className="text-sm text-red-800">{error}</p>
         </div>
       )}
 
-      {/* Book Button */}
       {user ? (
         <button
           onClick={handleBooking}
@@ -211,7 +221,6 @@ export default function BookingWidget({ product, onBook }) {
         </div>
       )}
 
-      {/* Additional Info */}
       <div className="mt-4 pt-4 border-t text-xs text-gray-500">
         <p>• Free cancellation up to 24 hours before pickup</p>
         <p>• Instant confirmation</p>

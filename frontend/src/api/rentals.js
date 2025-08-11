@@ -1,72 +1,66 @@
-import api from './api'
+import api from './api';
 
 export const rentalsAPI = {
-  // Check availability - using POST as per documentation
-  checkAvailability: async (productId, startDate, endDate, quantity = 1) => {
-  const response = await api.post('/rentals/check-availability', {
-    productId,
-    startTime: new Date(startDate).toISOString(),
-    endTime: new Date(endDate).toISOString(),
-    quantity
-  });
-  console.log("Check Availability Response:", response.data);
-  return response.data;
-},
+  // Check availability
+  checkAvailability: async (productId, startISO, endISO, quantity = 1) => {
+    const response = await api.post('/rentals/check-availability', {
+      productId,
+      startTime: startISO,
+      endTime: endISO,
+      qty: quantity
+    });
+    console.log("Check Availability Response:", response.data);
+    return response.data.data; // backend "data" object
+  },
 
-calculatePrice: async (productId, startDate, endDate) => {
-  const response = await api.post('/rentals/calculate-price', {
-    productId,
-    startTime: new Date(startDate).toISOString(),
-    endTime: new Date(endDate).toISOString()
-  });
-  return response.data;
-},
+  // Calculate price
+  calculatePrice: async (productId, startISO, endISO) => {
+    const response = await api.post('/rentals/calculate-price', {
+      productId,
+      startTime: startISO,
+      endTime: endISO
+    });
+    return response.data.data; // backend "data" object
+  },
 
-  // Create rental/booking - using the /create endpoint as per documentation
+  // Create rental
   createRental: async (rentalData) => {
     const response = await api.post('/rentals/create', {
-      productId: rentalData.product,
+      productId: rentalData.product || rentalData.productId,
       startTime: rentalData.startDate,
-      endTime: rentalData.endDate
-    })
-    return response.data
+      endTime: rentalData.endDate,
+      qty: rentalData.quantity || 1
+    });
+    return response.data;
   },
 
-  // Get user's rentals
   getMyRentals: async (params = {}) => {
-    const response = await api.get('/rentals', {
-      params: { ...params, mine: true }
-    })
-    return response.data
+    const response = await api.get('/rentals', { params: { ...params, mine: true } });
+    return response.data;
   },
 
-  // Get all rentals (admin only)
   getAllRentals: async (params = {}) => {
-    const response = await api.get('/rentals', { params })
-    return response.data
+    const response = await api.get('/rentals', { params });
+    return response.data;
   },
 
-  // Get single rental
   getRental: async (id) => {
-    const response = await api.get(`/rentals/${id}`)
-    return response.data
+    const response = await api.get(`/rentals/${id}`);
+    return response.data;
   },
 
-  // Update rental status (admin only)
   updateRentalStatus: async (id, status) => {
-    const response = await api.patch(`/rentals/${id}/status`, { status })
-    return response.data
+    const response = await api.patch(`/rentals/${id}/status`, { status });
+    return response.data;
   },
 
-  // Get rental stats (admin only)
   getRentalStats: async () => {
-    const response = await api.get('/rentals/stats')
-    return response.data
+    const response = await api.get('/rentals/stats');
+    return response.data;
   },
 
-  // Cancel rental (update status to cancelled)
   cancelRental: async (id) => {
-    const response = await api.patch(`/rentals/${id}/status`, { status: 'cancelled' })
-    return response.data
+    const response = await api.patch(`/rentals/${id}/status`, { status: 'cancelled' });
+    return response.data;
   }
-}
+};
