@@ -9,11 +9,11 @@ const { validationResult } = require('express-validator');
 
 /**
  * Listing Controller for P2P Marketplace
- * Handles all listing-related operations for hosts
+ * Handles all listing-related operations for users
  */
 class ListingController {
   /**
-   * Create a new listing (host only)
+   * Create a new listing (any user can lend)
    */
   static async createListing(req, res) {
     try {
@@ -29,10 +29,14 @@ class ListingController {
       const userId = req.user.id;
       const user = await User.findById(userId);
       
-      if (!user.isHost) {
+      // Check if user can lend items (basic requirements)
+      if (!user.canLendItems()) {
         return res.status(403).json({
           success: false,
-          message: 'Only hosts can create listings'
+          message: 'Please complete your profile with phone number to start lending items',
+          requirements: {
+            phone: !user.profile.phone
+          }
         });
       }
       
@@ -62,7 +66,7 @@ class ListingController {
       await listing.save();
       
       // Populate owner details
-      await listing.populate('ownerId', 'name email hostProfile');
+      await listing.populate('ownerId', 'name email profile');
       
       logger.info('Listing created successfully', {
         listingId: listing._id,
@@ -109,7 +113,7 @@ class ListingController {
         quantity = 1,
         search,
         sortBy = 'relevance',
-        hostId,
+        lenderId,
         status = 'published'
       } = req.query;
       
@@ -134,8 +138,8 @@ class ListingController {
         if (maxPrice) query.basePrice.$lte = parseFloat(maxPrice);
       }
       
-      if (hostId) {
-        query.ownerId = mongoose.Types.ObjectId(hostId);
+      if (lenderId) {
+        query.ownerId = mongoose.Types.ObjectId(lenderId);
       }
       
       // Handle search
@@ -215,10 +219,10 @@ class ListingController {
               {
                 $project: {
                   name: 1,
-                  'hostProfile.displayName': 1,
-                  'hostProfile.rating': 1,
-                  'hostProfile.verified': 1,
-                  'hostProfile.responseTime': 1
+                  'profile.displayName': 1,
+                  'lenderStats.rating': 1,
+                  'profile.verified': 1,
+                  'lenderStats.responseTime': 1
                 }
               }
             ]
@@ -334,7 +338,7 @@ class ListingController {
       }
       
       const listing = await Listing.findById(id)
-        .populate('ownerId', 'name email hostProfile createdAt');
+        .populate('ownerId', 'name email profile lenderStats createdAt');
       
       if (!listing) {
         return res.status(404).json({
@@ -469,7 +473,7 @@ class ListingController {
       Object.assign(listing, updateData);
       await listing.save();
       
-      await listing.populate('ownerId', 'name email hostProfile');
+      await listing.populate('ownerId', 'name email profile');
       
       logger.info('Listing updated successfully', {
         listingId: id,
@@ -708,9 +712,9 @@ class ListingController {
   }
   
   /**
-   * Get host's listings
+   * Get user's listings (items they're lending)
    */
-  static async getHostListings(req, res) {
+  static async getUserListings(req, res) {
     try {
       const userId = req.user.id;
       const { page = 1, limit = 10, status, search } = req.query;
@@ -764,14 +768,14 @@ class ListingController {
       });
       
     } catch (error) {
-      logger.error('Get host listings failed', {
+      logger.error('Get user listings failed', {
         error: error.message,
         userId: req.user?.id
       });
       
       res.status(500).json({
         success: false,
-        message: 'Failed to fetch host listings',
+        message: 'Failed to fetch user listings',
         error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
       });
     }
@@ -893,7 +897,7 @@ class ListingController {
         isActive: true,
         'location.city': listing.location.city
       })
-      .populate('ownerId', 'name hostProfile.displayName hostProfile.rating')
+      .populate('ownerId', 'name profile.displayName lenderStats.rating')
       .sort({ 'ratings.average': -1, bookingCount: -1 })
       .limit(limit)
       .lean();

@@ -286,7 +286,7 @@ ListingSchema.statics.findAvailable = function(filters = {}) {
   if (filters.maxPrice) query.basePrice = { ...query.basePrice, $lte: filters.maxPrice };
   
   return this.find(query)
-    .populate('ownerId', 'name hostProfile.displayName hostProfile.rating hostProfile.verified')
+    .populate('ownerId', 'name profile.displayName lenderStats.rating profile.verified')
     .sort({ 'isPromoted': -1, 'ratings.average': -1, 'createdAt': -1 });
 };
 
@@ -310,7 +310,7 @@ ListingSchema.statics.searchListings = function(searchTerm, filters = {}) {
   Object.assign(query, filters);
   
   return this.find(query)
-    .populate('ownerId', 'name hostProfile.displayName hostProfile.rating hostProfile.verified')
+    .populate('ownerId', 'name profile.displayName lenderStats.rating profile.verified')
     .sort({ 
       score: { $meta: 'textScore' },
       'isPromoted': -1, 

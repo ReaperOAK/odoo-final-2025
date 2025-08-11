@@ -37,8 +37,8 @@ class OrderController {
         });
       }
       
-      // Validate all line items belong to the same host (for now)
-      const hostIds = new Set();
+      // Validate all line items belong to the same lender (for now)
+      const lenderIds = new Set();
       for (const item of lineItems) {
         const listing = await Listing.findById(item.listingId);
         if (!listing) {
@@ -47,23 +47,24 @@ class OrderController {
             message: `Listing not found: ${item.listingId}`
           });
         }
-        hostIds.add(listing.ownerId.toString());
+        lenderIds.add(listing.ownerId.toString());
       }
       
-      if (hostIds.size > 1) {
+      if (lenderIds.size > 1) {
         return res.status(400).json({
           success: false,
-          message: 'Currently, orders can only contain items from a single host'
+          message: 'Currently, orders can only contain items from a single lender'
         });
       }
       
-      // Get customer and host details
+      // Get customer and lender details
       const customerUser = await User.findById(userId);
-      const hostId = Array.from(hostIds)[0];
-      const hostUser = await User.findById(hostId);
+      const lenderId = Array.from(lenderIds)[0];
+      const lenderUser = await User.findById(lenderId);
       
       const orderData = {
         customerId: userId,
+        lenderId,
         lineItems,
         paymentMode,
         customer: {
@@ -72,11 +73,11 @@ class OrderController {
           phone: customer?.phone || '',
           ...customer
         },
-        host: {
-          name: hostUser.name,
-          email: hostUser.email,
-          phone: hostUser.hostProfile?.phone || '',
-          businessName: hostUser.hostProfile?.displayName
+        lender: {
+          name: lenderUser.name,
+          email: lenderUser.email,
+          phone: lenderUser.profile?.phone || '',
+          businessName: lenderUser.profile?.displayName
         },
         metadata: {
           ipAddress: req.ip,
@@ -109,7 +110,7 @@ class OrderController {
             receipt: order.orderNumber,
             notes: {
               customer_id: userId,
-              host_id: hostId,
+              lender_id: lenderId,
               order_number: order.orderNumber
             }
           });
@@ -131,7 +132,7 @@ class OrderController {
         orderId: order._id,
         orderNumber: order.orderNumber,
         customerId: userId,
-        hostId,
+        lenderId,
         totalAmount,
         reservationCount: reservations.length
       });
@@ -262,7 +263,7 @@ class OrderController {
       
       const order = await Order.findById(id)
         .populate('customerId', 'name email phone')
-        .populate('hostId', 'name email hostProfile')
+        .populate('lenderId', 'name email profile')
         .populate('lineItems.listingId', 'title images category location ownerId')
         .populate('lineItems.reservationId');
       

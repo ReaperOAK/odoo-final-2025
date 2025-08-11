@@ -1,7 +1,17 @@
 const express = require('express');
 const { body, param, query } = require('express-validator');
 const authMiddleware = require('../middleware/auth.middleware');
-const ListingController = require('../controllers/listing.controller');
+
+/**
+ * @route   POST /api/listings
+ * @desc    Create a new listing
+ * @access  Private (Any user can lend)
+ */
+router.post('/',
+  authMiddleware.requireAuth,
+  createListingValidation,
+  ListingController.createListing
+);
 
 const router = express.Router();
 
@@ -154,11 +164,10 @@ const pricingValidation = [
 /**
  * @route   POST /api/listings
  * @desc    Create a new listing
- * @access  Private (Host)
+ * @access  Private (Any user can lend)
  */
 router.post('/',
   authMiddleware.verifyToken,
-  authMiddleware.requireRoles(['host']),
   createListingValidation,
   ListingController.createListing
 );
@@ -238,13 +247,12 @@ router.get('/',
 router.get('/categories', ListingController.getCategories);
 
 /**
- * @route   GET /api/listings/host
- * @desc    Get listings for current host
- * @access  Private (Host)
+ * @route   GET /api/listings/my-listings
+ * @desc    Get listings for current user (items they're lending)
+ * @access  Private (Any user)
  */
-router.get('/host',
+router.get('/my-listings',
   authMiddleware.verifyToken,
-  authMiddleware.requireRoles(['host']),
   [
     query('page')
       .optional()
@@ -259,7 +267,7 @@ router.get('/host',
       .isIn(['all', 'active', 'inactive', 'pending'])
       .withMessage('Invalid status filter')
   ],
-  ListingController.getHostListings
+  ListingController.getUserListings
 );
 
 /**
@@ -275,11 +283,10 @@ router.get('/:id',
 /**
  * @route   PUT /api/listings/:id
  * @desc    Update listing
- * @access  Private (Host - Owner only)
+ * @access  Private (Owner only)
  */
 router.put('/:id',
   authMiddleware.verifyToken,
-  authMiddleware.requireRoles(['host']),
   updateListingValidation,
   ListingController.updateListing
 );
@@ -287,11 +294,10 @@ router.put('/:id',
 /**
  * @route   DELETE /api/listings/:id
  * @desc    Delete listing
- * @access  Private (Host - Owner only)
+ * @access  Private (Owner only)
  */
 router.delete('/:id',
   authMiddleware.verifyToken,
-  authMiddleware.requireRoles(['host']),
   param('id').isMongoId().withMessage('Valid listing ID is required'),
   ListingController.deleteListing
 );

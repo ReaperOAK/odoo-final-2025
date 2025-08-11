@@ -12,7 +12,7 @@ const OrderSchema = new mongoose.Schema({
     required: true,
     index: true 
   },
-  hostId: { 
+  lenderId: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'User', 
     required: true,
@@ -51,7 +51,7 @@ const OrderSchema = new mongoose.Schema({
     
     // Commission breakdown
     platformCommission: { type: Number, default: 0, min: 0 },
-    hostEarnings: { type: Number, required: true, min: 0 },
+    lenderEarnings: { type: Number, required: true, min: 0 },
     
     // Payment breakdown
     paidAmount: { type: Number, default: 0, min: 0 },
@@ -138,8 +138,8 @@ const OrderSchema = new mongoose.Schema({
     }
   },
   
-  // Host details
-  host: {
+  // Lender details
+  lender: {
     name: { type: String, required: true },
     email: { type: String, required: true },
     phone: { type: String },
@@ -176,7 +176,7 @@ const OrderSchema = new mongoose.Schema({
     reason: { type: String },
     cancelledBy: { 
       type: String, 
-      enum: ['customer', 'host', 'admin', 'system'] 
+      enum: ['customer', 'lender', 'admin', 'system'] 
     },
     cancellationFee: { type: Number, default: 0, min: 0 },
     refundAmount: { type: Number, default: 0, min: 0 },
@@ -185,12 +185,12 @@ const OrderSchema = new mongoose.Schema({
   
   // Reviews and ratings
   reviews: {
-    customerToHost: {
+    customerToLender: {
       rating: { type: Number, min: 1, max: 5 },
       review: { type: String, maxlength: 1000 },
       reviewedAt: { type: Date }
     },
-    hostToCustomer: {
+    lenderToCustomer: {
       rating: { type: Number, min: 1, max: 5 },
       review: { type: String, maxlength: 1000 },
       reviewedAt: { type: Date }
