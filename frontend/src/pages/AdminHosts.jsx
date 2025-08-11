@@ -46,7 +46,7 @@ export default function AdminHosts() {
   const fetchHosts = async () => {
     try {
       setLoading(true);
-      const response = await adminAPI.getAllUsers({ role: 'host' });
+      const response = await adminAPI.getAllUsers({ role: "host" });
       setHosts(response.users || []);
       calculateStats(response.data.hosts);
       setError(null);

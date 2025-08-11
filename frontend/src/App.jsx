@@ -153,7 +153,7 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
-                
+
                 {/* Developer/Testing Routes */}
                 <Route
                   path="/api-tester"
