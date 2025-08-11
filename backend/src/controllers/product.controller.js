@@ -50,22 +50,27 @@ const getProducts = asyncHandler(async (req, res, next) => {
 
   // Build query
   let query = {};
-  
+
+  // If admin is authenticated, restrict to their own products
+  if (req.user && req.user.role === 'admin') {
+    query.createdBy = req.user._id;
+  }
+
   // Text search
   if (search) {
     query.$text = { $search: search };
   }
-  
+
   // Category filter (if categories are added to schema later)
   if (category) {
     query.category = category;
   }
-  
+
   // Stock filter
   if (minStock > 0) {
     query.stock = { $gte: parseInt(minStock) };
   }
-  
+
   // Available filter (products with stock > 0)
   if (available === 'true') {
     query.stock = { $gt: 0 };
