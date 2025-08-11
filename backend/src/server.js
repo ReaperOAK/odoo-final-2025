@@ -1,20 +1,20 @@
 const mongoose = require('mongoose');
 const app = require('./app');
 const logger = require('./utils/logger');
-require('dotenv').config({ path: '../../.env' });
+require('dotenv').config();
 
 // Uncaught Exception Handler
 process.on('uncaughtException', (err) => {
-  logger.error('Uncaught Exception! Shutting down...', { 
+  logger.error('Uncaught Exception! Shutting down...', {
     error: err.message,
-    stack: err.stack 
+    stack: err.stack
   });
   process.exit(1);
 });
 
 // Unhandled Promise Rejection Handler
 process.on('unhandledRejection', (reason, promise) => {
-  logger.error('Unhandled Rejection! Shutting down...', { 
+  logger.error('Unhandled Rejection! Shutting down...', {
     reason: reason?.message || reason,
     promise: promise.toString()
   });
@@ -33,20 +33,20 @@ const mongooseOptions = {
   maxIdleTimeMS: 30000, // Close connections after 30 seconds of inactivity
   serverSelectionTimeoutMS: 5000, // Keep trying to send operations for 5 seconds
   socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
-  
+
   // Buffering settings
   bufferCommands: false, // Disable mongoose buffering
-  
+
   // Auto index settings
   autoIndex: NODE_ENV === 'development', // Only auto-build indexes in development
   autoCreate: true, // Auto-create collections
-  
+
   // Replica set settings (if using replica sets)
   readPreference: 'primary',
-  
+
   // Heartbeat settings
   heartbeatFrequencyMS: 10000, // How often to check server status
-  
+
   // Error handling
   useNewUrlParser: true,
   useUnifiedTopology: true
@@ -96,13 +96,13 @@ mongoose.connection.on('close', () => {
 // Graceful shutdown function
 const gracefulShutdown = (signal) => {
   logger.info(`${signal} received. Starting graceful shutdown...`);
-  
+
   return new Promise((resolve) => {
     const timeout = setTimeout(() => {
       logger.error('Forced shutdown due to timeout');
       resolve();
     }, 10000); // 10 second timeout
-    
+
     mongoose.connection.close(false, () => {
       clearTimeout(timeout);
       logger.info('MongoDB connection closed through app termination');
@@ -124,15 +124,15 @@ const connectWithRetry = async (retries = 5, delay = 5000) => {
         attempt,
         retries
       });
-      
+
       if (attempt === retries) {
         logger.error('All database connection attempts failed. Exiting...');
         process.exit(1);
       }
-      
-      logger.info(`Retrying in ${delay/1000} seconds...`);
+
+      logger.info(`Retrying in ${delay / 1000} seconds...`);
       await new Promise(resolve => setTimeout(resolve, delay));
-      
+
       // Exponential backoff: increase delay for next attempt
       delay = Math.min(delay * 1.5, 30000); // Cap at 30 seconds
     }
@@ -144,7 +144,7 @@ const startServer = async () => {
   try {
     // Connect to database first
     await connectWithRetry();
-    
+
     // Start the server
     const server = app.listen(PORT, () => {
       logger.info('Server started successfully', {
@@ -157,7 +157,7 @@ const startServer = async () => {
         memory: process.memoryUsage(),
         uptime: process.uptime()
       });
-      
+
       // Log available routes in development
       if (NODE_ENV === 'development') {
         logger.info('Available routes:', {
@@ -169,12 +169,12 @@ const startServer = async () => {
         });
       }
     });
-    
+
     // Configure server timeout settings
     server.timeout = 120000; // 2 minutes
     server.keepAliveTimeout = 65000; // 65 seconds
     server.headersTimeout = 66000; // 66 seconds (should be higher than keepAliveTimeout)
-    
+
     // Handle server errors
     server.on('error', (error) => {
       if (error.code === 'EADDRINUSE') {
@@ -184,7 +184,7 @@ const startServer = async () => {
       }
       process.exit(1);
     });
-    
+
     // Graceful shutdown handlers
     process.on('SIGTERM', async () => {
       logger.info('SIGTERM received');
@@ -193,7 +193,7 @@ const startServer = async () => {
         process.exit(0);
       });
     });
-    
+
     process.on('SIGINT', async () => {
       logger.info('SIGINT received');
       server.close(async () => {
@@ -201,14 +201,14 @@ const startServer = async () => {
         process.exit(0);
       });
     });
-    
+
     // Handle server close
     server.on('close', () => {
       logger.info('Server closed');
     });
-    
+
     return server;
-    
+
   } catch (error) {
     logger.error('Failed to start server:', { error: error.message });
     process.exit(1);
@@ -221,7 +221,7 @@ if (NODE_ENV === 'production') {
   setInterval(() => {
     const memUsage = process.memoryUsage();
     const cpuUsage = process.cpuUsage();
-    
+
     logger.info('Performance metrics', {
       memory: {
         rss: Math.round(memUsage.rss / 1024 / 1024) + ' MB',
