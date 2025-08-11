@@ -1,66 +1,127 @@
 import api from './api';
 
+// Legacy Rentals API for backward compatibility with traditional rental system
+// This maps to the new P2P marketplace APIs for seamless migration
 export const rentalsAPI = {
-  // Check availability
+  // Check availability (maps to listings availability)
   checkAvailability: async (productId, startISO, endISO, quantity = 1) => {
-    const response = await api.post('/rentals/check-availability', {
-      productId,
-      startTime: startISO,
-      endTime: endISO,
-      qty: quantity
-    });
-    console.log("Check Availability Response:", response.data);
-    return response.data.data; // backend "data" object
+    try {
+      // Map to new listings availability API
+      const response = await api.get(`/listings/${productId}/availability`, {
+        params: {
+          start: startISO,
+          end: endISO,
+          qty: quantity
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Error checking availability:", error);
+      throw error;
+    }
   },
 
-  // Calculate price
-  calculatePrice: async (productId, startISO, endISO) => {
-    const response = await api.post('/rentals/calculate-price', {
-      productId,
-      startTime: startISO,
-      endTime: endISO
-    });
-    return response.data.data; // backend "data" object
+  // Calculate price (maps to orders price calculation)
+  calculatePrice: async (productId, startISO, endISO, quantity = 1) => {
+    try {
+      const response = await api.post('/orders/calculate-price', {
+        listingId: productId,
+        startTime: startISO,
+        endTime: endISO,
+        qty: quantity
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Error calculating price:", error);
+      throw error;
+    }
   },
 
-  // Create rental
+  // Create rental (maps to order creation)
   createRental: async (rentalData) => {
-    const response = await api.post('/rentals/create', {
-      productId: rentalData.product || rentalData.productId,
-      startTime: rentalData.startDate,
-      endTime: rentalData.endDate,
-      qty: rentalData.quantity || 1
-    });
-    return response.data;
+    try {
+      const response = await api.post('/orders', {
+        listingId: rentalData.product || rentalData.productId,
+        startTime: rentalData.startDate,
+        endTime: rentalData.endDate,
+        qty: rentalData.quantity || 1,
+        notes: rentalData.notes || ''
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Error creating rental:", error);
+      throw error;
+    }
   },
 
+  // Get user's rentals (maps to user's orders)
   getMyRentals: async (params = {}) => {
-    const response = await api.get('/rentals', { params: { ...params, mine: true } });
-    return response.data;
+    try {
+      const response = await api.get('/orders/my', { params });
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching my rentals:", error);
+      throw error;
+    }
   },
 
+  // Get all rentals (admin only - maps to all orders)
   getAllRentals: async (params = {}) => {
-    const response = await api.get('/rentals', { params });
-    return response.data;
+    try {
+      const response = await api.get('/admin/orders', { params });
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching all rentals:", error);
+      throw error;
+    }
   },
 
+  // Get specific rental (maps to order details)
   getRental: async (id) => {
-    const response = await api.get(`/rentals/${id}`);
-    return response.data;
+    try {
+      const response = await api.get(`/orders/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching rental:", error);
+      throw error;
+    }
   },
 
-  updateRentalStatus: async (id, status) => {
-    const response = await api.patch(`/rentals/${id}/status`, { status });
-    return response.data;
+  // Update rental status (maps to order status update)
+  updateRentalStatus: async (id, status, notes = '') => {
+    try {
+      const response = await api.patch(`/orders/${id}/status`, {
+        status,
+        notes
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Error updating rental status:", error);
+      throw error;
+    }
   },
 
-  getRentalStats: async () => {
-    const response = await api.get('/rentals/stats');
-    return response.data;
+  // Mark as picked up
+  markPickup: async (id, notes = '') => {
+    try {
+      const response = await api.post(`/orders/${id}/pickup`, { notes });
+      return response.data;
+    } catch (error) {
+      console.error("Error marking pickup:", error);
+      throw error;
+    }
   },
 
-  cancelRental: async (id) => {
-    const response = await api.patch(`/rentals/${id}/status`, { status: 'cancelled' });
-    return response.data;
+  // Mark as returned
+  markReturn: async (id, returnData) => {
+    try {
+      const response = await api.post(`/orders/${id}/return`, returnData);
+      return response.data;
+    } catch (error) {
+      console.error("Error marking return:", error);
+      throw error;
+    }
   }
 };
+
+export default rentalsAPI;

@@ -22,7 +22,8 @@ export const AuthProvider = ({ children }) => {
 
     if (token && userData) {
       try {
-        setUser(JSON.parse(userData));
+        const parsedUser = JSON.parse(userData);
+        setUser(parsedUser);
       } catch (error) {
         console.error("Error parsing user data:", error);
         localStorage.removeItem("token");
@@ -31,6 +32,13 @@ export const AuthProvider = ({ children }) => {
     }
     setLoading(false);
   }, []);
+
+  // Helper functions for user roles and status
+  const isAdmin = () => user?.role === 'admin';
+  const isHost = () => user?.role === 'host' || user?.isHost;
+  const isCustomer = () => user?.role === 'customer' || (!user?.role && user);
+  const isVerified = () => user?.verification?.status === 'verified';
+  const isActive = () => user?.status === 'active';
 
   const login = async (credentials) => {
     try {
@@ -101,17 +109,16 @@ export const AuthProvider = ({ children }) => {
         };
       }
 
-      // Update user data in context and localStorage
-      const updatedUser = { ...user, ...profileData };
-      setUser(updatedUser);
+      // Update local user data
+      const updatedUser = { ...user, ...response.user };
       localStorage.setItem("user", JSON.stringify(updatedUser));
+      setUser(updatedUser);
 
       return { success: true, data: response };
     } catch (error) {
       return {
         success: false,
-        error:
-          error.response?.data?.message || error.message || "Update failed",
+        error: error.response?.data?.message || "Profile update failed",
       };
     }
   };
@@ -119,71 +126,52 @@ export const AuthProvider = ({ children }) => {
   const changePassword = async (passwordData) => {
     try {
       const response = await authAPI.changePassword(passwordData);
-
-      if (!response) {
-        return {
-          success: false,
-          error: "No response from server",
-        };
-      }
-
       return { success: true, data: response };
     } catch (error) {
       return {
         success: false,
-        error:
-          error.response?.data?.message ||
-          error.message ||
-          "Password change failed",
+        error: error.response?.data?.message || "Password change failed",
       };
     }
   };
 
-  const isAdmin = () => {
-    return user?.role === "admin";
-  };
-
-  // P2P Marketplace Host Functions
-  const isHost = () => {
-    return user?.isHost === true || user?.role === "host";
-  };
-
-  const isVerifiedHost = () => {
-    return isHost() && user?.hostProfile?.verified === true;
-  };
-
-  const getWalletBalance = () => {
-    return user?.walletBalance || 0;
-  };
-
-  const updateHostProfile = async (hostProfileData) => {
+  // Refresh user profile from server
+  const refreshProfile = async () => {
     try {
-      const response = await authAPI.updateHostProfile(hostProfileData);
-
-      if (!response) {
-        return {
-          success: false,
-          error: "No response from server",
-        };
+      const response = await authAPI.getProfile();
+      if (response && response.user) {
+        localStorage.setItem("user", JSON.stringify(response.user));
+        setUser(response.user);
+        return { success: true, data: response.user };
       }
-
-      // Update user data with new host profile
-      const updatedUser = {
-        ...user,
-        isHost: true,
-        hostProfile: { ...user.hostProfile, ...hostProfileData },
-      };
-      setUser(updatedUser);
-      localStorage.setItem("user", JSON.stringify(updatedUser));
-
-      return { success: true, data: response };
+      return { success: false, error: "Failed to refresh profile" };
     } catch (error) {
       return {
         success: false,
-        error:
-          error.response?.data?.message ||
-          error.message ||
-          "Host profile update failed",
+        error: error.response?.data?.message || "Failed to refresh profile",
+      };
+    }
+  };
+
+  // Host-specific functions
+  const becomeHost = async (hostData) => {
+    try {
+      const response = await authAPI.updateProfile({
+        ...hostData,
+        role: 'host',
+        isHost: true
+      });
+
+      if (response && response.user) {
+        localStorage.setItem("user", JSON.stringify(response.user));
+        setUser(response.user);
+        return { success: true, data: response };
+      }
+      return { success: false, error: "Failed to become host" };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.message || "Failed to become host",
       };
     }
   };
@@ -191,69 +179,35 @@ export const AuthProvider = ({ children }) => {
   const requestVerification = async (verificationData) => {
     try {
       const response = await authAPI.requestVerification(verificationData);
-
-      if (!response) {
-        return {
-          success: false,
-          error: "No response from server",
-        };
-      }
-
-      // Update user verification status
-      const updatedUser = {
-        ...user,
-        hostProfile: {
-          ...user.hostProfile,
-          verificationPending: true,
-        },
-      };
-      setUser(updatedUser);
-      localStorage.setItem("user", JSON.stringify(updatedUser));
-
+      
+      // Refresh user profile to get updated verification status
+      await refreshProfile();
+      
       return { success: true, data: response };
     } catch (error) {
       return {
         success: false,
-        error:
-          error.response?.data?.message ||
-          error.message ||
-          "Verification request failed",
+        error: error.response?.data?.message || "Verification request failed",
       };
-    }
-  };
-
-  const refreshUser = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) return;
-
-      const response = await authAPI.getProfile();
-      if (response.success) {
-        const updatedUser = response.data;
-        setUser(updatedUser);
-        localStorage.setItem("user", JSON.stringify(updatedUser));
-      }
-    } catch (error) {
-      console.error("Error refreshing user data:", error);
     }
   };
 
   const value = {
     user,
+    loading,
     login,
     register,
     logout,
     updateProfile,
     changePassword,
-    isAdmin,
-    // P2P Marketplace functions
-    isHost,
-    isVerifiedHost,
-    getWalletBalance,
-    updateHostProfile,
+    refreshProfile,
+    becomeHost,
     requestVerification,
-    refreshUser,
-    loading,
+    isAdmin,
+    isHost,
+    isCustomer,
+    isVerified,
+    isActive,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

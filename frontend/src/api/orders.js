@@ -4,7 +4,7 @@ export const ordersAPI = {
   // Create new order
   createOrder: async (orderData) => {
     try {
-      const response = await api.post('/api/orders', orderData);
+      const response = await api.post('/orders', orderData);
       return response.data;
     } catch (error) {
       console.error("Error creating order:", error);
@@ -15,7 +15,7 @@ export const ordersAPI = {
   // Get order by ID
   getOrder: async (orderId) => {
     try {
-      const response = await api.get(`/api/orders/${orderId}`);
+      const response = await api.get(`/orders/${orderId}`);
       return response.data;
     } catch (error) {
       console.error("Error fetching order:", error);
@@ -32,7 +32,7 @@ export const ordersAPI = {
       if (params.limit) queryParams.append('limit', params.limit);
 
       const queryString = queryParams.toString();
-      const url = queryString ? `/api/orders/my?${queryString}` : '/api/orders/my';
+      const url = queryString ? `/orders/my?${queryString}` : '/orders/my';
 
       const response = await api.get(url);
       return response.data;
@@ -52,7 +52,7 @@ export const ordersAPI = {
       if (params.limit) queryParams.append('limit', params.limit);
 
       const queryString = queryParams.toString();
-      const url = queryString ? `/api/orders/host?${queryString}` : '/api/orders/host';
+      const url = queryString ? `/orders/host?${queryString}` : '/orders/host';
 
       const response = await api.get(url);
       return response.data;
@@ -65,7 +65,7 @@ export const ordersAPI = {
   // Update order status (host/admin)
   updateOrderStatus: async (orderId, status, notes = '') => {
     try {
-      const response = await api.patch(`/api/orders/${orderId}/status`, {
+      const response = await api.patch(`/orders/${orderId}/status`, {
         status,
         notes
       });
@@ -79,7 +79,7 @@ export const ordersAPI = {
   // Mark order as picked up
   markPickup: async (orderId, notes = '') => {
     try {
-      const response = await api.post(`/api/orders/${orderId}/pickup`, {
+      const response = await api.post(`/orders/${orderId}/pickup`, {
         notes
       });
       return response.data;
@@ -92,7 +92,7 @@ export const ordersAPI = {
   // Mark order as returned
   markReturn: async (orderId, returnData) => {
     try {
-      const response = await api.post(`/api/orders/${orderId}/return`, returnData);
+      const response = await api.post(`/orders/${orderId}/return`, returnData);
       return response.data;
     } catch (error) {
       console.error("Error marking return:", error);

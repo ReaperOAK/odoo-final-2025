@@ -4,7 +4,7 @@ export const paymentsAPI = {
   // Create Razorpay order
   createRazorpayOrder: async (orderData) => {
     try {
-      const response = await api.post('/api/payments/create-order', orderData);
+      const response = await api.post('/payments/create-order', orderData);
       return response.data;
     } catch (error) {
       console.error("Error creating Razorpay order:", error);
@@ -15,7 +15,7 @@ export const paymentsAPI = {
   // Verify payment
   verifyPayment: async (paymentData) => {
     try {
-      const response = await api.post('/api/payments/verify', paymentData);
+      const response = await api.post('/payments/verify', paymentData);
       return response.data;
     } catch (error) {
       console.error("Error verifying payment:", error);
@@ -26,7 +26,7 @@ export const paymentsAPI = {
   // Process payment (mock mode)
   processMockPayment: async (orderData) => {
     try {
-      const response = await api.post('/api/payments/mock', orderData);
+      const response = await api.post('/payments/mock', orderData);
       return response.data;
     } catch (error) {
       console.error("Error processing mock payment:", error);
@@ -37,10 +37,21 @@ export const paymentsAPI = {
   // Get payment status
   getPaymentStatus: async (paymentId) => {
     try {
-      const response = await api.get(`/api/payments/${paymentId}/status`);
+      const response = await api.get(`/payments/${paymentId}/status`);
       return response.data;
     } catch (error) {
       console.error("Error fetching payment status:", error);
+      throw error;
+    }
+  },
+
+  // Get payment details
+  getPaymentDetails: async (paymentId) => {
+    try {
+      const response = await api.get(`/payments/${paymentId}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching payment details:", error);
       throw error;
     }
   },

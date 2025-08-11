@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
-import { getHosts, updateHostVerification, suspendHost } from "../api/hosts";
+import { adminAPI } from "../api/admin";
 import HostVerification from "../components/HostVerification";
 import {
   MagnifyingGlassIcon,
@@ -46,8 +46,8 @@ export default function AdminHosts() {
   const fetchHosts = async () => {
     try {
       setLoading(true);
-      const response = await getHosts();
-      setHosts(response.data.hosts);
+      const response = await adminAPI.getAllUsers({ role: 'host' });
+      setHosts(response.users || []);
       calculateStats(response.data.hosts);
       setError(null);
     } catch (err) {
