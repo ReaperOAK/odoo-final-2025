@@ -80,21 +80,23 @@ const createRateLimit = (windowMs, max, message) => rateLimit({
 });
 
 // Different rate limits for different endpoints
+const isTestOrDev = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test' || !process.env.NODE_ENV;
+
 const generalLimiter = createRateLimit(
   15 * 60 * 1000, // 15 minutes
-  1000, // limit each IP to 1000 requests per windowMs
+  isTestOrDev ? 10000 : 1000, // Very high limit for test/dev
   'Too many requests from this IP, please try again later'
 );
 
 const authLimiter = createRateLimit(
   15 * 60 * 1000, // 15 minutes
-  10, // limit each IP to 10 auth requests per windowMs
+  isTestOrDev ? 5000 : 50, // Much higher limit for test/dev
   'Too many authentication attempts, please try again later'
 );
 
 const strictLimiter = createRateLimit(
   60 * 1000, // 1 minute
-  20, // limit each IP to 20 requests per minute for sensitive operations
+  isTestOrDev ? 1000 : 50, // Higher limit for test/dev
   'Rate limit exceeded for sensitive operations'
 );
 

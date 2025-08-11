@@ -4,7 +4,9 @@ const logger = require('./logger');
 
 // Simple in-memory cache for product stock (valid for 30 seconds)
 const productCache = new Map();
+const availabilityCache = new Map();
 const CACHE_DURATION = 30 * 1000; // 30 seconds
+const AVAILABILITY_CACHE_DURATION = 10 * 1000; // 10 seconds for availability checks
 
 /**
  * Get product with caching for better performance
@@ -58,6 +60,16 @@ const checkAvailability = async (productId, startTime, endTime, qty = 1, request
   try {
     logger.startTimer('availability-check', requestId);
     
+    // Create cache key for this availability check
+    const cacheKey = `avail-${productId}-${startTime}-${endTime}-${qty}`;
+    const cached = availabilityCache.get(cacheKey);
+    
+    if (cached && (Date.now() - cached.timestamp) < AVAILABILITY_CACHE_DURATION) {
+      logger.debug('Availability cache hit', { productId, requestId });
+      logger.endTimer('availability-check', requestId, { result: 'cached' });
+      return cached.result;
+    }
+    
     // Input validation and sanitization
     if (!productId || !startTime || !endTime) {
       throw new Error('Missing required parameters: productId, startTime, endTime');
@@ -109,16 +121,20 @@ const checkAvailability = async (productId, startTime, endTime, qty = 1, request
       };
     }
     
-    // Count overlapping active bookings with optimized query
+    // Count overlapping active bookings with optimized query and projection
     logger.startTimer('overlap-count', requestId);
+    
+    // Use the most efficient query possible
     const overlappingCount = await RentalOrder.countDocuments({
       product: productId,
       status: { $in: ['confirmed', 'picked_up'] },
-      $and: [
-        { startTime: { $lt: end } },
-        { endTime: { $gt: start } }
-      ]
+      startTime: { $lt: end },
+      endTime: { $gt: start }
+    }, { 
+      maxTimeMS: 500,  // Maximum 500ms timeout
+      hint: { product: 1, startTime: 1, endTime: 1 }  // Force use of compound index
     });
+    
     logger.endTimer('overlap-count', requestId, { overlappingCount });
     
     const availableStock = product.stock - overlappingCount;
@@ -139,7 +155,7 @@ const checkAvailability = async (productId, startTime, endTime, qty = 1, request
       availableStock 
     });
     
-    return {
+    const result = {
       isAvailable,
       availableStock,
       requestedQuantity: qty,
@@ -150,6 +166,24 @@ const checkAvailability = async (productId, startTime, endTime, qty = 1, request
         end: end.toISOString()
       }
     };
+    
+    // Cache the result
+    availabilityCache.set(cacheKey, {
+      result,
+      timestamp: Date.now()
+    });
+    
+    // Clean up expired availability cache entries
+    setTimeout(() => {
+      if (availabilityCache.has(cacheKey)) {
+        const entry = availabilityCache.get(cacheKey);
+        if (Date.now() - entry.timestamp >= AVAILABILITY_CACHE_DURATION) {
+          availabilityCache.delete(cacheKey);
+        }
+      }
+    }, AVAILABILITY_CACHE_DURATION);
+    
+    return result;
     
   } catch (error) {
     logger.error('Availability check failed', { 
@@ -267,7 +301,8 @@ const getAvailabilityCalendar = async (productId, startDate, endDate, requestId 
 // Clear cache function for testing/manual refresh
 const clearProductCache = () => {
   productCache.clear();
-  logger.info('Product cache cleared');
+  availabilityCache.clear();
+  logger.info('Product and availability cache cleared');
 };
 
 module.exports = { 

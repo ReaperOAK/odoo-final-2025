@@ -107,7 +107,14 @@ const createBooking = asyncHandler(async (req, res, next) => {
       // Get product within transaction with a lock
       const product = await Product.findById(productId).session(session);
       if (!product) {
-        await session.abortTransaction();
+        // Safely abort transaction only if it's still active
+        if (session.inTransaction()) {
+          try {
+            await session.abortTransaction();
+          } catch (abortError) {
+            logger.debug('Transaction already aborted during product fetch', { requestId });
+          }
+        }
         throw new AppError('Product not found', 404, ERROR_TYPES.NOT_FOUND);
       }
 
@@ -126,7 +133,15 @@ const createBooking = asyncHandler(async (req, res, next) => {
       const availableStock = product.stock - overlappingCount;
       
       if (availableStock < qty) {
-        await session.abortTransaction();
+        // Safely abort transaction only if it's still active
+        if (session.inTransaction()) {
+          try {
+            await session.abortTransaction();
+          } catch (abortError) {
+            logger.debug('Transaction already aborted during availability check', { requestId });
+          }
+        }
+        
         logger.warn('Booking failed - Insufficient availability', {
           requestId,
           productId,
@@ -198,7 +213,14 @@ const createBooking = asyncHandler(async (req, res, next) => {
       });
 
     } catch (error) {
-      await session.abortTransaction();
+      // Safely abort transaction only if it's still active
+      if (session.inTransaction()) {
+        try {
+          await session.abortTransaction();
+        } catch (abortError) {
+          logger.debug('Transaction already aborted', { requestId, abortError: abortError.message });
+        }
+      }
 
       // If it's not a concurrency issue or we've exhausted attempts, throw immediately
       if (error.isOperational || attempts >= maxAttempts) {

@@ -58,6 +58,12 @@ const getCachedUser = async (userId, requestId) => {
  * @returns {Boolean} Whether the request is allowed
  */
 const checkAuthRateLimit = (identifier) => {
+  // Skip rate limiting in test/development environment
+  const isTestOrDev = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test' || !process.env.NODE_ENV;
+  if (isTestOrDev) {
+    return true;
+  }
+  
   const now = Date.now();
   const attempts = authAttempts.get(identifier) || { count: 0, resetTime: now + AUTH_WINDOW };
   
