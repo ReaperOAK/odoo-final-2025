@@ -47,7 +47,7 @@ const connectDB = async () => {
 const clearData = async () => {
   try {
     log('🧹 Clearing existing data...', 'yellow');
-    
+
     await Promise.all([
       RentalOrder.deleteMany({}),
       Product.deleteMany({}),
@@ -58,7 +58,7 @@ const clearData = async () => {
       Payment.deleteMany({}),
       Payout.deleteMany({})
     ]);
-    
+
     log('✅ Existing data cleared', 'green');
   } catch (error) {
     log(`❌ Error clearing data: ${error.message}`, 'red');
@@ -72,7 +72,7 @@ const clearData = async () => {
 const createUsers = async () => {
   try {
     log('👥 Creating demo users...', 'blue');
-    
+
     const users = [
       // Demo admin accounts
       {
@@ -107,7 +107,7 @@ const createUsers = async () => {
           zipCode: '110001'
         }
       },
-      
+
       // Demo host accounts
       {
         name: 'Raj Singh - Camera Host',
@@ -205,7 +205,7 @@ const createUsers = async () => {
           bankName: 'State Bank of India'
         }
       },
-      
+
       // Demo customer accounts
       {
         name: 'John Customer',
@@ -273,14 +273,14 @@ const createUsers = async () => {
       }
     ];
 
-    // Hash passwords before creating users
-    for (let user of users) {
-      user.password = await bcrypt.hash(user.password, 12);
-    }
+    // Don't hash passwords manually - let the User model's pre-save hook handle it
+    // for (let user of users) {
+    //   user.password = await bcrypt.hash(user.password, 12);
+    // }
 
     const createdUsers = await User.create(users);
     log(`✅ Created ${createdUsers.length} users`, 'green');
-    
+
     return createdUsers;
   } catch (error) {
     log(`❌ Error creating users: ${error.message}`, 'red');
@@ -294,9 +294,9 @@ const createUsers = async () => {
 const createListings = async (users) => {
   try {
     log('🏪 Creating demo listings...', 'blue');
-    
+
     const hosts = users.filter(u => u.isHost);
-    
+
     const listings = [
       // Raj's Camera Equipment
       {
@@ -376,7 +376,7 @@ const createListings = async (users) => {
         bookingCount: 12,
         viewCount: 189
       },
-      
+
       // Priya's Event Equipment
       {
         ownerId: hosts[1]._id, // Priya Sharma
@@ -480,7 +480,7 @@ const createListings = async (users) => {
         bookingCount: 15,
         viewCount: 198
       },
-      
+
       // Arjun's Sports Equipment
       {
         ownerId: hosts[2]._id, // Arjun Patel
@@ -590,7 +590,7 @@ const createListings = async (users) => {
 
     const createdListings = await Listing.create(listings);
     log(`✅ Created ${createdListings.length} listings`, 'green');
-    
+
     return createdListings;
   } catch (error) {
     log(`❌ Error creating listings: ${error.message}`, 'red');
@@ -604,19 +604,19 @@ const createListings = async (users) => {
 const createOrdersAndReservations = async (users, listings) => {
   try {
     log('📋 Creating demo orders and reservations...', 'blue');
-    
+
     // Safely filter customers and hosts
     const customers = users.filter(u => u.role === 'customer' && !u.isHost);
     const hosts = users.filter(u => u.isHost === true);
-    
+
     log(`📊 Found ${customers.length} customers and ${hosts.length} hosts`, 'blue');
-    
+
     if (customers.length === 0 || hosts.length === 0) {
       log('⚠️  Warning: Insufficient customers or hosts found, creating minimal demo data', 'yellow');
       return { orders: [], reservations: [], payments: [] };
     }
     const now = new Date();
-    
+
     const orders = [];
     const reservations = [];
     const payments = [];
@@ -644,7 +644,7 @@ const createOrdersAndReservations = async (users, listings) => {
         status: 'confirmed',
         paymentStatus: 'completed'
       },
-      
+
       // Currently active rentals (using future dates but marking as in_progress)
       {
         customerId: customers[2] ? customers[2]._id : customers[0]._id,
@@ -666,7 +666,7 @@ const createOrdersAndReservations = async (users, listings) => {
         status: 'in_progress',
         paymentStatus: 'completed'
       },
-      
+
       // Completed orders (using recent past dates as examples, will be marked completed)
       {
         customerId: customers[0]._id,
@@ -688,7 +688,7 @@ const createOrdersAndReservations = async (users, listings) => {
         status: 'completed',
         paymentStatus: 'completed'
       },
-      
+
       // Pending payment orders
       {
         customerId: customers[2] ? customers[2]._id : customers[0]._id,
@@ -700,7 +700,7 @@ const createOrdersAndReservations = async (users, listings) => {
         status: 'pending',
         paymentStatus: 'pending'
       },
-      
+
       // Cancelled orders
       {
         customerId: customers[3] ? customers[3]._id : customers[0]._id,
@@ -720,7 +720,7 @@ const createOrdersAndReservations = async (users, listings) => {
         const listing = listings.find(l => l._id.equals(scenario.listingId));
         const customer = users.find(u => u._id.equals(scenario.customerId));
         const host = users.find(u => u._id.equals(scenario.hostId));
-        
+
         if (!listing || !customer || !host) {
           log(`⚠️  Warning: Skipping order - missing data (listing: ${!!listing}, customer: ${!!customer}, host: ${!!host})`, 'yellow');
           continue;
@@ -730,7 +730,7 @@ const createOrdersAndReservations = async (users, listings) => {
         const days = Math.ceil((scenario.endDate - scenario.startDate) / (1000 * 60 * 60 * 24));
         const baseAmount = listing.basePrice * days * scenario.quantity;
         const platformFee = Math.round(baseAmount * 0.05); // 5% platform fee
-        const depositAmount = listing.depositType === 'percent' 
+        const depositAmount = listing.depositType === 'percent'
           ? Math.round(baseAmount * listing.depositValue / 100)
           : listing.depositValue;
         const totalAmount = baseAmount + platformFee;
@@ -792,10 +792,10 @@ const createOrdersAndReservations = async (users, listings) => {
           quantity: scenario.quantity,
           startDate: scenario.startDate,
           endDate: scenario.endDate,
-          status: scenario.status === 'in_progress' ? 'in_progress' : 
-                 scenario.status === 'completed' ? 'completed' :
-                 scenario.status === 'cancelled' ? 'cancelled' : 
-                 scenario.status === 'confirmed' ? 'confirmed' : 'pending',
+          status: scenario.status === 'in_progress' ? 'in_progress' :
+            scenario.status === 'completed' ? 'completed' :
+              scenario.status === 'cancelled' ? 'cancelled' :
+                scenario.status === 'confirmed' ? 'confirmed' : 'pending',
           pricing: {
             unitPrice: listing.basePrice,
             totalDays: days,
@@ -860,14 +860,14 @@ const createOrdersAndReservations = async (users, listings) => {
 
     // Create orders first, then link them to reservations
     const createdOrders = await Order.create(orders);
-    
+
     // Update reservations with order IDs
     for (let i = 0; i < reservations.length; i++) {
       if (createdOrders[i]) {
         reservations[i].orderId = createdOrders[i]._id;
       }
     }
-    
+
     // Update payments with order IDs
     for (let i = 0; i < payments.length; i++) {
       if (payments[i] && createdOrders[i]) {
@@ -877,11 +877,11 @@ const createOrdersAndReservations = async (users, listings) => {
 
     const createdReservations = await Reservation.create(reservations);
     const createdPayments = payments.length > 0 ? await Payment.create(payments.filter(p => p)) : [];
-    
+
     log(`✅ Created ${createdOrders.length} orders`, 'green');
     log(`✅ Created ${createdReservations.length} reservations`, 'green');
     log(`✅ Created ${createdPayments.length} payments`, 'green');
-    
+
     return { orders: createdOrders, reservations: createdReservations, payments: createdPayments };
   } catch (error) {
     log(`❌ Error creating orders and reservations: ${error.message}`, 'red');
@@ -895,19 +895,19 @@ const createOrdersAndReservations = async (users, listings) => {
 const createPayouts = async (users, orders) => {
   try {
     log('💰 Creating demo payouts...', 'blue');
-    
+
     const hosts = users.filter(u => u.isHost);
     const payouts = [];
 
     for (const host of hosts) {
       try {
         // Calculate completed orders for this host
-        const hostOrders = orders.filter(o => 
+        const hostOrders = orders.filter(o =>
           o.hostId.equals(host._id) && o.status === 'completed'
         );
 
         if (hostOrders.length > 0) {
-          const totalEarnings = hostOrders.reduce((sum, order) => 
+          const totalEarnings = hostOrders.reduce((sum, order) =>
             sum + (order.pricing.subtotal - Math.round(order.pricing.subtotal * 0.05)), 0
           ); // Subtract 5% platform commission
 
@@ -955,7 +955,7 @@ const createPayouts = async (users, orders) => {
 
     const createdPayouts = payouts.length > 0 ? await Payout.create(payouts) : [];
     log(`✅ Created ${createdPayouts.length} payouts`, 'green');
-    
+
     return createdPayouts;
   } catch (error) {
     log(`❌ Error creating payouts: ${error.message}`, 'red');
@@ -969,16 +969,16 @@ const createPayouts = async (users, orders) => {
 const displaySummary = async (users, listings, orders, reservations, payments, payouts) => {
   log('\n📊 P2P MARKETPLACE SEED SUMMARY', 'cyan');
   log('===================================', 'cyan');
-  
+
   const adminUsers = users.filter(u => u.role === 'admin');
   const hostUsers = users.filter(u => u.isHost);
   const customerUsers = users.filter(u => u.role === 'customer' && !u.isHost);
-  
+
   log(`👥 Users: ${users.length} total`, 'blue');
   log(`   - Admins: ${adminUsers.length}`, 'blue');
   log(`   - Hosts: ${hostUsers.length}`, 'blue');
   log(`   - Customers: ${customerUsers.length}`, 'blue');
-  
+
   log(`\n🏪 Listings: ${listings.length} total`, 'blue');
   const categoryCount = listings.reduce((acc, l) => {
     acc[l.category] = (acc[l.category] || 0) + 1;
@@ -987,7 +987,7 @@ const displaySummary = async (users, listings, orders, reservations, payments, p
   Object.entries(categoryCount).forEach(([category, count]) => {
     log(`   - ${category}: ${count}`, 'blue');
   });
-  
+
   log(`\n📋 Orders: ${orders.length} total`, 'blue');
   const orderStatusCounts = orders.reduce((acc, o) => {
     acc[o.status] = (acc[o.status] || 0) + 1;
@@ -996,37 +996,37 @@ const displaySummary = async (users, listings, orders, reservations, payments, p
   Object.entries(orderStatusCounts).forEach(([status, count]) => {
     log(`   - ${status}: ${count}`, 'blue');
   });
-  
+
   log(`\n🎫 Reservations: ${reservations.length} total`, 'blue');
   log(`💳 Payments: ${payments.length} total`, 'blue');
   log(`💰 Payouts: ${payouts.length} total`, 'blue');
-  
+
   const totalRevenue = orders
     .filter(o => o.status !== 'cancelled')
     .reduce((sum, o) => sum + o.pricing.totalAmount, 0);
   log(`\n💰 Total Revenue: ₹${totalRevenue.toLocaleString()}`, 'blue');
-  
+
   const totalPlatformFees = orders
     .filter(o => o.status !== 'cancelled')
     .reduce((sum, o) => sum + o.pricing.platformFee, 0);
   log(`📈 Platform Fees: ₹${totalPlatformFees.toLocaleString()}`, 'blue');
-  
+
   log('\n🔑 DEMO ACCOUNTS', 'cyan');
   log('==================', 'cyan');
   log('Admin Account:', 'green');
   log('  Email: admin@demo.com', 'green');
   log('  Password: p@ssw0rd', 'green');
-  
+
   log('\nHost Accounts:', 'green');
   log('  Email: raj.host@demo.com (Camera Equipment)', 'green');
   log('  Email: priya.host@demo.com (Event Equipment)', 'green');
   log('  Email: arjun.host@demo.com (Sports Equipment)', 'green');
   log('  Password: p@ssw0rd', 'green');
-  
+
   log('\nCustomer Account:', 'green');
   log('  Email: user@demo.com', 'green');
   log('  Password: p@ssw0rd', 'green');
-  
+
   log('\n🚀 P2P MARKETPLACE FEATURES', 'cyan');
   log('==============================', 'cyan');
   log('✅ Multi-host listings across categories', 'yellow');
@@ -1037,7 +1037,7 @@ const displaySummary = async (users, listings, orders, reservations, payments, p
   log('✅ Order lifecycle: pending → confirmed → active → completed', 'yellow');
   log('✅ Admin dashboard with platform analytics', 'yellow');
   log('✅ Host dashboard with earnings tracking', 'yellow');
-  
+
   log('\n🧪 TESTING SCENARIOS', 'cyan');
   log('=====================', 'cyan');
   log('🎯 Try booking Canon Camera Kit (conflicts with existing bookings)', 'yellow');
@@ -1047,7 +1047,7 @@ const displaySummary = async (users, listings, orders, reservations, payments, p
   log('🎯 Test payment flow with mock Razorpay', 'yellow');
   log('🎯 Check availability across different dates', 'yellow');
   log('🎯 Test concurrent booking conflicts', 'yellow');
-  
+
   log('\n💡 API ENDPOINTS AVAILABLE', 'cyan');
   log('===========================', 'cyan');
   log('📍 GET /api/listings - Browse all listings', 'yellow');
@@ -1066,20 +1066,20 @@ const seedDatabase = async () => {
   try {
     log('🌱 Starting P2P Marketplace database seeding...', 'cyan');
     log('=================================================', 'cyan');
-    
+
     await connectDB();
     await clearData();
-    
+
     const users = await createUsers();
     const listings = await createListings(users);
     const { orders, reservations, payments } = await createOrdersAndReservations(users, listings);
     const payouts = await createPayouts(users, orders);
-    
+
     await displaySummary(users, listings, orders, reservations, payments, payouts);
-    
+
     log('\n✅ P2P Marketplace database seeding completed successfully!', 'green');
     log('🎉 Ready for multi-host marketplace demo and testing!', 'green');
-    
+
   } catch (error) {
     log(`\n❌ Seeding failed: ${error.message}`, 'red');
     console.error(error);

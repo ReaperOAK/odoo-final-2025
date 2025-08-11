@@ -42,9 +42,14 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (credentials) => {
     try {
+      console.log("AuthContext: Attempting login with:", {
+        email: credentials.email,
+      });
       const response = await authAPI.login(credentials);
+      console.log("AuthContext: Login response:", response);
 
       if (!response) {
+        console.error("AuthContext: No response from server");
         return {
           success: false,
           error: "No response from server",
@@ -55,18 +60,25 @@ export const AuthProvider = ({ children }) => {
       const { token, user: userData } = response;
 
       if (!token || !userData) {
+        console.error("AuthContext: Missing authentication data", {
+          token: !!token,
+          userData: !!userData,
+        });
         return {
           success: false,
           error: "Missing authentication data",
         };
       }
 
+      console.log("AuthContext: Storing token and user data");
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(userData));
       setUser(userData);
 
+      console.log("AuthContext: Login successful");
       return { success: true, data: response };
     } catch (error) {
+      console.error("AuthContext: Login error:", error);
       return {
         success: false,
         error: error.response?.data?.message || error.message || "Login failed",
