@@ -19,34 +19,19 @@ export default function ProductDetail() {
   const [selectedImage, setSelectedImage] = useState(0);
   const [bookingSuccess, setBookingSuccess] = useState(false);
 
-  console.log("=== ProductDetail component START ===");
-  console.log("ProductDetail component rendered, product ID:", id);
-  console.log("Current loading state:", loading);
-  console.log("Current product state:", product);
-
   useEffect(() => {
-    console.log("=== useEffect triggered ===");
-    console.log("useEffect triggered for product ID:", id);
     if (id) {
       fetchProduct();
-    } else {
-      console.log("No ID found in params!");
     }
   }, [id]);
 
   const fetchProduct = async () => {
-    console.log("fetchProduct called for ID:", id);
     try {
       setLoading(true);
-      console.log("About to call productsAPI.getProduct with ID:", id);
       const response = await productsAPI.getProduct(id);
-      console.log("Product API response:", response);
-      console.log("Product data:", response.data);
       setProduct(response.data);
     } catch (error) {
       console.error("Failed to fetch product:", error);
-      console.error("Error details:", error.response?.data);
-      // Handle 404 or other errors
     } finally {
       setLoading(false);
     }

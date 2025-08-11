@@ -32,9 +32,6 @@ export default function Products() {
       };
 
       const response = await productsAPI.getProducts(params);
-      console.log("Products API response:", response);
-      console.log("Products data:", response.data);
-      console.log("Pagination:", response.pagination);
       setProducts(response.data || []);
       setTotalPages(response.pagination?.pages || 1);
     } catch (error) {
