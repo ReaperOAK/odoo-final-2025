@@ -8,11 +8,16 @@ import {
   ShoppingBagIcon,
   Cog6ToothIcon,
   UserCircleIcon,
+  PlusIcon,
+  HomeIcon,
+  ListBulletIcon,
+  BuildingStorefrontIcon,
 } from "@heroicons/react/24/outline";
+import HostVerification from "./HostVerification";
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, isHost, getWalletBalance } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -25,13 +30,28 @@ export default function Header() {
   const isActive = (path) => location.pathname === path;
 
   const navigation = [
-    { name: "Home", href: "/", icon: null },
-    { name: "Products", href: "/products", icon: null },
+    { name: "Home", href: "/", icon: HomeIcon },
+    { name: "Browse Listings", href: "/listings", icon: ListBulletIcon },
   ];
 
   const userNavigation = user
     ? [
         { name: "My Bookings", href: "/my-bookings", icon: ShoppingBagIcon },
+        ...(isHost()
+          ? [
+              {
+                name: "Host Dashboard",
+                href: "/host/dashboard",
+                icon: BuildingStorefrontIcon,
+              },
+              {
+                name: "My Listings",
+                href: "/my-listings",
+                icon: ListBulletIcon,
+              },
+              { name: "Add Listing", href: "/listings/create", icon: PlusIcon },
+            ]
+          : []),
         { name: `${user.name}`, href: "/profile", icon: UserCircleIcon },
         ...(isAdmin()
           ? [
@@ -43,6 +63,16 @@ export default function Header() {
               {
                 name: "Admin Rentals",
                 href: "/admin/rentals",
+                icon: Cog6ToothIcon,
+              },
+              {
+                name: "Admin Hosts",
+                href: "/admin/hosts",
+                icon: Cog6ToothIcon,
+              },
+              {
+                name: "Admin Payouts",
+                href: "/admin/payouts",
                 icon: Cog6ToothIcon,
               },
             ]
@@ -58,10 +88,10 @@ export default function Header() {
           <div className="flex-shrink-0">
             <Link to="/" className="flex items-center">
               <div className="w-8 h-8 bg-brand rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-lg">R</span>
+                <span className="text-white font-bold text-lg">P</span>
               </div>
               <span className="ml-2 text-xl font-bold text-gray-900">
-                RentEasy
+                P2P Marketplace
               </span>
             </Link>
           </div>
@@ -72,12 +102,13 @@ export default function Header() {
               <Link
                 key={item.name}
                 to={item.href}
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                   isActive(item.href)
                     ? "text-brand bg-brand-50"
                     : "text-gray-600 hover:text-brand hover:bg-gray-50"
                 }`}
               >
+                <item.icon className="w-4 h-4 mr-1.5" />
                 {item.name}
               </Link>
             ))}
@@ -87,6 +118,23 @@ export default function Header() {
           <div className="hidden md:flex items-center space-x-4">
             {user ? (
               <div className="flex items-center space-x-4">
+                {/* Host Badge and Wallet */}
+                {isHost() && (
+                  <div className="flex items-center space-x-3">
+                    <HostVerification
+                      host={user}
+                      size="small"
+                      showText={false}
+                    />
+                    <div className="text-sm">
+                      <div className="text-gray-600">Wallet</div>
+                      <div className="font-semibold text-green-600">
+                        ₹{getWalletBalance().toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {userNavigation.map((item) => (
                   <Link
                     key={item.name}
@@ -150,18 +198,34 @@ export default function Header() {
                   key={item.name}
                   to={item.href}
                   onClick={() => setIsMenuOpen(false)}
-                  className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
+                  className={`flex items-center px-3 py-2 rounded-md text-base font-medium transition-colors ${
                     isActive(item.href)
                       ? "text-brand bg-brand-50"
                       : "text-gray-600 hover:text-brand hover:bg-gray-50"
                   }`}
                 >
+                  <item.icon className="w-5 h-5 mr-2" />
                   {item.name}
                 </Link>
               ))}
 
               {user ? (
                 <>
+                  {/* Host Info on Mobile */}
+                  {isHost() && (
+                    <div className="px-3 py-2 border-t border-b border-gray-200">
+                      <div className="flex items-center justify-between">
+                        <HostVerification host={user} size="small" />
+                        <div className="text-sm">
+                          <div className="text-gray-600">Wallet</div>
+                          <div className="font-semibold text-green-600">
+                            ₹{getWalletBalance().toLocaleString()}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {userNavigation.map((item) => (
                     <Link
                       key={item.name}

@@ -143,6 +143,101 @@ export const AuthProvider = ({ children }) => {
     return user?.role === "admin";
   };
 
+  // P2P Marketplace Host Functions
+  const isHost = () => {
+    return user?.isHost === true || user?.role === "host";
+  };
+
+  const isVerifiedHost = () => {
+    return isHost() && user?.hostProfile?.verified === true;
+  };
+
+  const getWalletBalance = () => {
+    return user?.walletBalance || 0;
+  };
+
+  const updateHostProfile = async (hostProfileData) => {
+    try {
+      const response = await authAPI.updateHostProfile(hostProfileData);
+
+      if (!response) {
+        return {
+          success: false,
+          error: "No response from server",
+        };
+      }
+
+      // Update user data with new host profile
+      const updatedUser = {
+        ...user,
+        isHost: true,
+        hostProfile: { ...user.hostProfile, ...hostProfileData },
+      };
+      setUser(updatedUser);
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+
+      return { success: true, data: response };
+    } catch (error) {
+      return {
+        success: false,
+        error:
+          error.response?.data?.message ||
+          error.message ||
+          "Host profile update failed",
+      };
+    }
+  };
+
+  const requestVerification = async (verificationData) => {
+    try {
+      const response = await authAPI.requestVerification(verificationData);
+
+      if (!response) {
+        return {
+          success: false,
+          error: "No response from server",
+        };
+      }
+
+      // Update user verification status
+      const updatedUser = {
+        ...user,
+        hostProfile: {
+          ...user.hostProfile,
+          verificationPending: true,
+        },
+      };
+      setUser(updatedUser);
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+
+      return { success: true, data: response };
+    } catch (error) {
+      return {
+        success: false,
+        error:
+          error.response?.data?.message ||
+          error.message ||
+          "Verification request failed",
+      };
+    }
+  };
+
+  const refreshUser = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      const response = await authAPI.getProfile();
+      if (response.success) {
+        const updatedUser = response.data;
+        setUser(updatedUser);
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+      }
+    } catch (error) {
+      console.error("Error refreshing user data:", error);
+    }
+  };
+
   const value = {
     user,
     login,
@@ -151,6 +246,13 @@ export const AuthProvider = ({ children }) => {
     updateProfile,
     changePassword,
     isAdmin,
+    // P2P Marketplace functions
+    isHost,
+    isVerifiedHost,
+    getWalletBalance,
+    updateHostProfile,
+    requestVerification,
+    refreshUser,
     loading,
   };
 
