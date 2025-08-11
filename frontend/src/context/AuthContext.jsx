@@ -90,6 +90,51 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const updateProfile = async (profileData) => {
+    try {
+      const response = await authAPI.updateProfile(profileData);
+      
+      if (!response) {
+        return {
+          success: false,
+          error: "No response from server"
+        };
+      }
+
+      // Update user data in context and localStorage
+      const updatedUser = { ...user, ...profileData };
+      setUser(updatedUser);
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+
+      return { success: true, data: response };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.message || error.message || "Update failed",
+      };
+    }
+  };
+
+  const changePassword = async (passwordData) => {
+    try {
+      const response = await authAPI.changePassword(passwordData);
+      
+      if (!response) {
+        return {
+          success: false,
+          error: "No response from server"
+        };
+      }
+
+      return { success: true, data: response };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.message || error.message || "Password change failed",
+      };
+    }
+  };
+
   const isAdmin = () => {
     return user?.role === "admin";
   };
@@ -99,6 +144,8 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
+    updateProfile,
+    changePassword,
     isAdmin,
     loading,
   };

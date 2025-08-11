@@ -11,6 +11,7 @@ import Register from './pages/Register'
 import Products from './pages/Products'
 import ProductDetail from './pages/ProductDetail'
 import MyBookings from './pages/MyBookings'
+import Profile from './pages/Profile'
 import AdminProducts from './pages/AdminProducts'
 import AdminRentals from './pages/AdminRentals'
 
@@ -32,6 +33,11 @@ function App() {
               <Route path="/my-bookings" element={
                 <ProtectedRoute>
                   <MyBookings />
+                </ProtectedRoute>
+              } />
+              <Route path="/profile" element={
+                <ProtectedRoute>
+                  <Profile />
                 </ProtectedRoute>
               } />
               
