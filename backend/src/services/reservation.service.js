@@ -160,7 +160,7 @@ class ReservationService {
         // Create order
         const order = new Order({
           customerId,
-          hostId,
+          lenderId: hostId, // Use hostId as lenderId for P2P marketplace
           lineItems: processedLineItems,
           pricing: {
             subtotal: totalAmount - totalDeposit,
@@ -208,7 +208,7 @@ class ReservationService {
           const payment = new Payment({
             orderId: order._id,
             customerId,
-            hostId,
+            hostId, // Keep using hostId for Payment model consistency
             amount: totalAmount,
             currency: 'INR',
             method: paymentMode,
@@ -253,7 +253,7 @@ class ReservationService {
           success: true,
           order: await Order.findById(order._id)
             .populate('customerId', 'name email phone')
-            .populate('hostId', 'name email hostProfile')
+            .populate('lenderId', 'name email hostProfile')
             .populate('lineItems.listingId', 'title images category location ownerId')
             .populate('lineItems.reservationId')
             .session(session),
@@ -310,18 +310,24 @@ class ReservationService {
         };
       }
 
-      // For now, simplified availability check - just check if listing has enough quantity
-      // TODO: Implement proper overlap checking with existing orders
-      const availableQuantity = listing.totalQuantity || 0;
+      // Check for existing reservations that conflict with the requested dates
+      const conflicts = await Reservation.findConflicts(listingId, startDate, endDate);
+      
+      // Calculate total reserved quantity for the date range
+      const reservedQuantity = conflicts.reduce((total, conflict) => total + conflict.quantity, 0);
+      
+      // Calculate available quantity
+      const totalQuantity = listing.totalQuantity || 0;
+      const availableQuantity = Math.max(0, totalQuantity - reservedQuantity);
       const isAvailable = availableQuantity >= quantity;
 
       return {
         available: isAvailable,
-        availableQuantity: isAvailable ? availableQuantity : 0,
+        availableQuantity,
         requestedQuantity: quantity,
-        totalQuantity: listing.totalQuantity || 0,
-        reservedQuantity: 0, // Simplified for now
-        reason: isAvailable ? null : 'Insufficient quantity available'
+        totalQuantity,
+        reservedQuantity,
+        reason: isAvailable ? null : `Only ${availableQuantity} items available, but ${quantity} requested`
       };
     } catch (error) {
       logger.error('Availability check failed', {

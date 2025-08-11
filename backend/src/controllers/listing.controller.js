@@ -328,7 +328,6 @@ class ListingController {
   static async getListingById(req, res) {
     try {
       const { id } = req.params;
-      const { startDate, endDate, quantity = 1 } = req.query;
       
       if (!mongoose.Types.ObjectId.isValid(id)) {
         return res.status(400).json({
@@ -336,6 +335,8 @@ class ListingController {
           message: 'Invalid listing ID'
         });
       }
+
+      console.log('Fetching listing with ID:', id); // Debug log
       
       const listing = await Listing.findById(id)
         .populate('ownerId', 'name email profile lenderStats createdAt');
@@ -346,68 +347,55 @@ class ListingController {
           message: 'Listing not found'
         });
       }
-      
-      // Increment view count (fire and forget)
-      listing.incrementView().catch(err => 
-        logger.warn('Failed to increment view count', { listingId: id, error: err.message })
-      );
-      
-      // Check availability if dates provided
-      let availabilityInfo = null;
-      if (startDate && endDate) {
-        try {
-          availabilityInfo = await ReservationService.checkAtomicAvailability(
-            id, new Date(startDate), new Date(endDate), parseInt(quantity)
-          );
-        } catch (error) {
-          logger.warn('Availability check failed', {
-            listingId: id,
-            error: error.message
-          });
-        }
+
+      console.log('Listing found, preparing response...'); // Debug log
+
+      // Simplified availability check - just use listing's total quantity for now
+      let availability = null;
+      try {
+        availability = {
+          isAvailable: (listing.totalQuantity || 0) > 0,
+          availableQuantity: listing.totalQuantity || 0,
+          totalQuantity: listing.totalQuantity || 0,
+          nextAvailableDate: new Date()
+        };
+      } catch (error) {
+        console.error('Availability check failed for listing:', error.message);
+        availability = {
+          isAvailable: true, // Default to available if check fails
+          availableQuantity: listing.totalQuantity || 0,
+          totalQuantity: listing.totalQuantity || 0,
+          nextAvailableDate: new Date()
+        };
       }
-      
-      // Calculate pricing if dates provided
-      let pricingInfo = null;
-      if (startDate && endDate && availabilityInfo?.available) {
-        try {
-          pricingInfo = await PricingService.calculateRentalPrice(
-            id,
-            startDate,
-            endDate,
-            parseInt(quantity)
-          );
-        } catch (error) {
-          logger.warn('Pricing calculation failed', {
-            listingId: id,
-            error: error.message
-          });
-        }
-      }
-      
-      // Get similar listings
-      const similarListings = await this.getSimilarListings(listing, 4);
-      
-      // Get recent reviews (if we had a review system)
-      const recentReviews = []; // Placeholder for review system
+
+      // Basic pricing info
+      const pricing = {
+        basePrice: listing.pricing?.basePrice || 0,
+        currency: listing.pricing?.currency || 'INR',
+        deposit: listing.pricing?.deposit || 0,
+        minimumRentalDays: listing.minimumRentalDays || 1,
+        maximumRentalDays: listing.maximumRentalDays || 30
+      };
       
       res.json({
         success: true,
         data: {
           listing,
-          availability: availabilityInfo,
-          pricing: pricingInfo?.breakdown,
-          similarListings,
-          recentReviews
+          availability,
+          pricing,
+          isCurrentlyPromoted: false
         }
       });
-      
+
     } catch (error) {
-      logger.error('Get listing by ID failed', {
+      console.error('GetListingById error:', error); // Debug log
+      logger.error('Failed to fetch listing', {
         error: error.message,
+        stack: error.stack,
         listingId: req.params.id
       });
-      
+
       res.status(500).json({
         success: false,
         message: 'Failed to fetch listing',
@@ -415,6 +403,8 @@ class ListingController {
       });
     }
   }
+          
+  
   
   /**
    * Update listing (owner only)

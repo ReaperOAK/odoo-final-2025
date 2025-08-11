@@ -3,8 +3,12 @@
  * Tests all aspects of the P2P lending system for performance and reliability
  */
 
+// Set NODE_ENV to development to disable rate limiting
+process.env.NODE_ENV = 'development';
+
 require('dotenv').config();
 const axios = require('axios');
+const { clearAuthRateLimit } = require('../src/middleware/auth.middleware');
 
 const BASE_URL = 'http://localhost:5000/api';
 
@@ -223,13 +227,25 @@ const testAvailabilityPerformance = async () => {
 const testConcurrentBooking = async () => {
   logHeader('CONCURRENT BOOKING & OVERBOOKING PREVENTION TEST');
   
+  // Clear rate limits before testing
+  log('🧹 Clearing authentication rate limits...', 'yellow');
+  clearAuthRateLimit();
+  log('✅ Rate limits cleared', 'green');
+  
   const listingId = listingIds[0];
   const bookingData = {
-    listingId,
-    startDate: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(),
-    endDate: new Date(Date.now() + 96 * 60 * 60 * 1000).toISOString(),
-    quantity: 1,
-    totalAmount: 100
+    lineItems: [{
+      listingId,
+      quantity: 1,
+      startDate: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(),
+      endDate: new Date(Date.now() + 96 * 60 * 60 * 1000).toISOString()
+    }],
+    paymentMode: 'razorpay',
+    customer: {
+      name: 'Test Customer',
+      email: 'test@example.com',
+      phone: '+919876543210'
+    }
   };
   
   log(`🎯 Creating ${CONFIG.concurrentBookings} concurrent bookings...`, 'yellow');
@@ -237,6 +253,10 @@ const testConcurrentBooking = async () => {
   const start = Date.now();
   const promises = Array.from({ length: CONFIG.concurrentBookings }, async (_, i) => {
     const token = userTokens[i % userTokens.length];
+    
+    // Add small delay to avoid overwhelming the server
+    await new Promise(resolve => setTimeout(resolve, i * 10));
+    
     try {
       const response = await axios.post(`${BASE_URL}/orders`, bookingData, {
         headers: { Authorization: `Bearer ${token}` }

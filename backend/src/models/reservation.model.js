@@ -393,7 +393,7 @@ ReservationSchema.statics.checkAvailability = async function(listingId, startDat
 
 ReservationSchema.statics.findConflicts = function(listingId, startDate, endDate, excludeReservationId = null) {
   const query = {
-    listingId: mongoose.Types.ObjectId(listingId),
+    listingId: new mongoose.Types.ObjectId(listingId),
     status: { $in: ['confirmed', 'picked_up', 'in_progress'] },
     $or: [
       {
@@ -418,7 +418,7 @@ ReservationSchema.statics.findConflicts = function(listingId, startDate, endDate
   };
   
   if (excludeReservationId) {
-    query._id = { $ne: mongoose.Types.ObjectId(excludeReservationId) };
+    query._id = { $ne: new mongoose.Types.ObjectId(excludeReservationId) };
   }
   
   return this.find(query);
