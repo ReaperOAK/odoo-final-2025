@@ -138,26 +138,26 @@ export default function BookingWidget({ product, onBook }) {
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-600">
-                ${price.breakdown?.dailyRate} × {price.breakdown?.days} day
+                ₹{price.breakdown?.dailyRate} × {price.breakdown?.days} day
                 {price.breakdown?.days > 1 ? "s" : ""}
               </span>
-              <span className="font-medium">${price.breakdown?.basePrice}</span>
+              <span className="font-medium">₹{price.breakdown?.basePrice}</span>
             </div>
             {price.breakdown?.discounts > 0 && (
               <div className="flex justify-between text-green-600">
                 <span>Discount</span>
-                <span>-${price.breakdown.discounts}</span>
+                <span>-₹{price.breakdown.discounts}</span>
               </div>
             )}
             {price.breakdown?.fees > 0 && (
               <div className="flex justify-between text-gray-600">
                 <span>Service fees</span>
-                <span>${price.breakdown.fees}</span>
+                <span>₹{price.breakdown.fees}</span>
               </div>
             )}
             <div className="border-t pt-2 flex justify-between font-bold text-lg">
               <span>Total</span>
-              <span className="text-brand">${price.totalPrice}</span>
+              <span className="text-brand">₹{price.totalPrice}</span>
             </div>
           </div>
         </div>
@@ -180,7 +180,7 @@ export default function BookingWidget({ product, onBook }) {
           {loading
             ? "Checking..."
             : canBook
-            ? `Book for $${price?.totalPrice}`
+            ? `Book for ₹${price?.totalPrice}`
             : "Select dates to book"}
         </button>
       ) : (

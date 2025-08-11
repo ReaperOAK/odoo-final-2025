@@ -41,7 +41,7 @@ export default function ProductCard({ product }) {
             <span>Per {priceUnit}</span>
           </div>
           <div className="text-right">
-            <span className="text-2xl font-bold text-brand">${basePrice}</span>
+            <span className="text-2xl font-bold text-brand">₹{basePrice}</span>
             <span className="text-sm text-gray-500">/{priceUnit}</span>
           </div>
         </div>

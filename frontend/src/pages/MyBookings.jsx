@@ -212,7 +212,7 @@ function BookingCard({ booking, onCancel }) {
               </div>
               <div className="text-right">
                 <div className="text-2xl font-bold text-brand">
-                  ${booking.totalPrice}
+                  ₹{booking.totalPrice}
                 </div>
                 <div className="text-sm text-gray-500">Total Cost</div>
               </div>

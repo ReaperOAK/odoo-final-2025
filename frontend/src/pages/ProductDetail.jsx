@@ -214,7 +214,7 @@ export default function ProductDetail() {
 
                 <div className="mb-6">
                   <span className="text-4xl font-bold text-brand">
-                    ${basePrice}
+                    ₹{basePrice}
                   </span>
                   <span className="text-xl text-gray-600">/{priceUnit}</span>
                 </div>
@@ -273,7 +273,7 @@ export default function ProductDetail() {
                         className="border rounded-lg p-4 text-center"
                       >
                         <div className="text-2xl font-bold text-brand">
-                          ${price.rate}
+                          ₹{price.rate}
                         </div>
                         <div className="text-sm text-gray-600 capitalize">
                           per {price.unit}

@@ -276,7 +276,7 @@ function RentalAdminCard({ rental, onStatusUpdate }) {
 
               <div className="text-right">
                 <div className="text-2xl font-bold text-brand">
-                  ${rental.totalPrice}
+                  ₹{rental.totalPrice}
                 </div>
                 <div className="text-sm text-gray-500">Total Value</div>
               </div>

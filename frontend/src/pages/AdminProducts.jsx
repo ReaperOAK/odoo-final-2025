@@ -230,7 +230,7 @@ function ProductAdminCard({ product, onDelete }) {
 
         <div className="flex items-center justify-between mb-4">
           <div className="text-2xl font-bold text-brand">
-            ${basePrice}
+            ₹{basePrice}
             <span className="text-sm text-gray-500 font-normal">
               /{priceUnit}
             </span>
