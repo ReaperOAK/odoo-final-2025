@@ -3,9 +3,6 @@ import ProductCard from "../components/ProductCard";
 import { productsAPI } from "../api/products";
 import {
   MagnifyingGlassIcon,
-  FunnelIcon,
-  Squares2X2Icon,
-  ListBulletIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   SparklesIcon,
@@ -17,7 +14,6 @@ export default function Products() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("name");
-  const [viewMode, setViewMode] = useState("grid"); // grid or list
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -185,77 +181,55 @@ export default function Products() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
         {/* Enhanced Filters and Search */}
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 p-6 lg:p-8 mb-8 lg:mb-12">
-          <div className="flex flex-col space-y-6">
-            {/* Search Bar */}
-            <div className="relative max-w-2xl mx-auto w-full">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+          {/* Main Search Bar with integrated controls */}
+          <div className="flex flex-col lg:flex-row gap-6 items-stretch lg:items-center">
+            {/* Search Section */}
+            <div className="flex-1">
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search for cameras, laptops, microphones..."
+                  value={searchTerm}
+                  onChange={handleSearch}
+                  className="block w-full pl-12 pr-4 py-4 border border-gray-200 rounded-xl leading-5 bg-white/70 backdrop-blur-sm placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-brand focus:border-brand transition-all duration-200 text-lg shadow-sm"
+                />
               </div>
-              <input
-                type="text"
-                placeholder="Search for cameras, laptops, microphones..."
-                value={searchTerm}
-                onChange={handleSearch}
-                className="block w-full pl-12 pr-4 py-4 border border-gray-200 rounded-xl leading-5 bg-white/70 backdrop-blur-sm placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-brand focus:border-brand transition-all duration-200 text-lg"
-              />
             </div>
 
-            {/* Controls Row */}
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            {/* Controls Section */}
+            <div className="flex flex-col sm:flex-row gap-4 lg:flex-shrink-0">
               {/* Sort Controls */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                <div className="flex items-center bg-gray-50 rounded-xl p-1">
-                  <AdjustmentsHorizontalIcon className="h-5 w-5 text-gray-500 mr-3 ml-2" />
-                  <select
-                    value={sortBy}
-                    onChange={handleSortChange}
-                    className="bg-transparent border-none focus:ring-0 focus:outline-none text-gray-700 font-medium pr-8 py-2"
-                  >
-                    <option value="name">Name A-Z</option>
-                    <option value="-name">Name Z-A</option>
-                    <option value="pricing.rate">Price: Low to High</option>
-                    <option value="-pricing.rate">Price: High to Low</option>
-                    <option value="-stock">Stock: High to Low</option>
-                  </select>
-                </div>
-                
-                {/* Results Count */}
-                {!loading && (
-                  <div className="text-gray-600 text-sm bg-gray-100 px-3 py-2 rounded-lg">
+              <div className="flex items-center bg-gray-50/80 backdrop-blur-sm rounded-xl px-4 py-3 border border-gray-200/50 shadow-sm min-w-fit">
+                <AdjustmentsHorizontalIcon className="h-5 w-5 text-gray-500 mr-3 flex-shrink-0" />
+                <select
+                  value={sortBy}
+                  onChange={handleSortChange}
+                  className="bg-transparent border-none focus:ring-0 focus:outline-none text-gray-700 font-medium pr-2 text-sm lg:text-base min-w-0"
+                >
+                  <option value="name">Name A-Z</option>
+                  <option value="-name">Name Z-A</option>
+                  <option value="pricing.rate">Price: Low to High</option>
+                  <option value="-pricing.rate">Price: High to Low</option>
+                  <option value="-stock">Stock: High to Low</option>
+                </select>
+              </div>
+              
+              {/* Results Count */}
+              {!loading && (
+                <div className="flex items-center text-gray-600 text-sm bg-brand/5 border border-brand/20 px-4 py-3 rounded-xl backdrop-blur-sm">
+                  <div className="w-2 h-2 bg-brand rounded-full mr-3 flex-shrink-0"></div>
+                  <span className="font-medium">
                     {products.length > 0 ? (
-                      <>Showing {products.length} of {totalPages * 12} products</>
+                      <>{products.length} of {totalPages * 12} products</>
                     ) : (
                       "No products found"
                     )}
-                  </div>
-                )}
-              </div>
-
-              {/* View Mode Toggle */}
-              <div className="flex items-center bg-gray-100 rounded-xl p-1">
-                <button
-                  onClick={() => setViewMode("grid")}
-                  className={`flex items-center px-4 py-2 rounded-lg transition-all duration-200 ${
-                    viewMode === "grid"
-                      ? "bg-brand text-white shadow-md"
-                      : "text-gray-600 hover:text-gray-900 hover:bg-white"
-                  }`}
-                >
-                  <Squares2X2Icon className="h-4 w-4 mr-2" />
-                  Grid
-                </button>
-                <button
-                  onClick={() => setViewMode("list")}
-                  className={`flex items-center px-4 py-2 rounded-lg transition-all duration-200 ${
-                    viewMode === "list"
-                      ? "bg-brand text-white shadow-md"
-                      : "text-gray-600 hover:text-gray-900 hover:bg-white"
-                  }`}
-                >
-                  <ListBulletIcon className="h-4 w-4 mr-2" />
-                  List
-                </button>
-              </div>
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -269,13 +243,8 @@ export default function Products() {
               <div className="h-6 bg-gradient-to-r from-gray-200 to-gray-300 rounded-lg w-24 animate-pulse"></div>
             </div>
             
-            <div
-              className={`grid gap-6 lg:gap-8 ${
-                viewMode === "grid"
-                  ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-                  : "grid-cols-1"
-              }`}
-            >
+            {/* Intelligent responsive grid: mobile=1, tablet=2, desktop=3, large=4 */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 lg:gap-8">
               {[...Array(12)].map((_, i) => (
                 <div
                   key={i}
@@ -304,13 +273,8 @@ export default function Products() {
               </div>
             </div>
             
-            <div
-              className={`grid gap-6 lg:gap-8 ${
-                viewMode === "grid"
-                  ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-                  : "grid-cols-1"
-              }`}
-            >
+            {/* Intelligent responsive grid: mobile=1, tablet=2, desktop=3, large=4 */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 lg:gap-8">
               {products.map((product) => (
                 <div 
                   key={product._id} 
