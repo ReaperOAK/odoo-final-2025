@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import DateRangePicker from "./DateRangePicker";
-import { checkAvailability, calculatePrice } from "../api/api";
+import { rentalsAPI } from "../api/rentals";
 import {
   CurrencyDollarIcon,
   ClockIcon,
@@ -33,8 +33,8 @@ export default function BookingWidget({ product, onBook }) {
       setError("");
 
       const [availabilityRes, priceRes] = await Promise.all([
-        checkAvailability(product._id, startDate, endDate),
-        calculatePrice(product._id, startDate, endDate),
+        rentalsAPI.checkAvailability(product._id, startDate, endDate),
+        rentalsAPI.calculatePrice(product._id, startDate, endDate),
       ]);
 
       setIsAvailable(availabilityRes.data.available);
@@ -63,7 +63,7 @@ export default function BookingWidget({ product, onBook }) {
       productId: product._id,
       startDate,
       endDate,
-      totalPrice: price?.total,
+      totalPrice: price?.totalPrice,
     });
   };
 
@@ -138,19 +138,25 @@ export default function BookingWidget({ product, onBook }) {
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-600">
-                ${price.unitPrice} × {price.days} day{price.days > 1 ? "s" : ""}
+                ${price.breakdown?.dailyRate} × {price.breakdown?.days} day{price.breakdown?.days > 1 ? "s" : ""}
               </span>
-              <span className="font-medium">${price.subtotal}</span>
+              <span className="font-medium">${price.breakdown?.basePrice}</span>
             </div>
-            {price.discounts?.map((discount, index) => (
-              <div key={index} className="flex justify-between text-green-600">
-                <span>{discount.reason}</span>
-                <span>-${discount.amount}</span>
+            {price.breakdown?.discounts > 0 && (
+              <div className="flex justify-between text-green-600">
+                <span>Discount</span>
+                <span>-${price.breakdown.discounts}</span>
               </div>
-            ))}
+            )}
+            {price.breakdown?.fees > 0 && (
+              <div className="flex justify-between text-gray-600">
+                <span>Service fees</span>
+                <span>${price.breakdown.fees}</span>
+              </div>
+            )}
             <div className="border-t pt-2 flex justify-between font-bold text-lg">
               <span>Total</span>
-              <span className="text-brand">${price.total}</span>
+              <span className="text-brand">${price.totalPrice}</span>
             </div>
           </div>
         </div>
@@ -173,7 +179,7 @@ export default function BookingWidget({ product, onBook }) {
           {loading
             ? "Checking..."
             : canBook
-            ? `Book for $${price?.total}`
+            ? `Book for $${price?.totalPrice}`
             : "Select dates to book"}
         </button>
       ) : (

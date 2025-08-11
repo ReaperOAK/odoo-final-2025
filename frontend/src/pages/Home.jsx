@@ -19,8 +19,9 @@ export default function Home() {
 
   const fetchFeaturedProducts = async () => {
     try {
-      const data = await productsAPI.getProducts({ limit: 6 });
-      setFeaturedProducts(data.products || []);
+      const response = await productsAPI.getProducts({ limit: 6 });
+      console.log("Featured products response:", response);
+      setFeaturedProducts(response.data || []);
     } catch (error) {
       console.error("Failed to fetch featured products:", error);
     } finally {

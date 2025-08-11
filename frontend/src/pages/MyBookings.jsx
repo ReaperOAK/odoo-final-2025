@@ -22,8 +22,9 @@ export default function MyBookings() {
   const fetchBookings = async () => {
     try {
       setLoading(true);
-      const data = await rentalsAPI.getMyRentals();
-      setBookings(data.rentals || []);
+      const response = await rentalsAPI.getMyRentals();
+      console.log("My bookings response:", response);
+      setBookings(response.data?.rentals || []);
     } catch (error) {
       console.error("Failed to fetch bookings:", error);
     } finally {

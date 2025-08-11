@@ -22,8 +22,9 @@ export default function AdminProducts() {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const data = await productsAPI.getProducts({ limit: 100 });
-      setProducts(data.products || []);
+      const response = await productsAPI.getProducts({ limit: 100 });
+      console.log("Admin products response:", response);
+      setProducts(response.data || []);
     } catch (error) {
       console.error("Failed to fetch products:", error);
     } finally {

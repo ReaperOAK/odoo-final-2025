@@ -34,8 +34,9 @@ export default function AdminRentals() {
         params.status = statusFilter;
       }
 
-      const data = await rentalsAPI.getAllRentals(params);
-      setRentals(data.rentals || []);
+      const response = await rentalsAPI.getAllRentals(params);
+      console.log("Admin rentals response:", response);
+      setRentals(response.data?.rentals || []);
     } catch (error) {
       console.error("Failed to fetch rentals:", error);
     } finally {

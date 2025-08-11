@@ -62,5 +62,11 @@ export const rentalsAPI = {
   getRentalStats: async () => {
     const response = await api.get('/rentals/stats')
     return response.data
+  },
+
+  // Cancel rental (update status to cancelled)
+  cancelRental: async (id) => {
+    const response = await api.patch(`/rentals/${id}/status`, { status: 'cancelled' })
+    return response.data
   }
 }
