@@ -369,7 +369,7 @@ Check if a product is available for a specific time period.
   "productId": "64a1b2c3d4e5f6789abc456",
   "startTime": "2024-02-15T09:00:00.000Z",
   "endTime": "2024-02-17T18:00:00.000Z",
-  "quantity": 1
+  "qty": 1
 }
 ```
 
