@@ -13,6 +13,12 @@ require('dotenv').config();
 const authRoutes = require('./routes/auth.routes');
 const productRoutes = require('./routes/product.routes');
 const rentalRoutes = require('./routes/rental.routes');
+const listingRoutes = require('./routes/listing.routes');
+const orderRoutes = require('./routes/order.routes');
+const paymentRoutes = require('./routes/payment.routes');
+const payoutRoutes = require('./routes/payout.routes');
+const hostDashboardRoutes = require('./routes/hostDashboard.routes');
+const adminRoutes = require('./routes/admin.routes');
 
 // Import middleware
 const { errorMiddleware, notFoundMiddleware } = require('./middleware/error.middleware');
@@ -301,6 +307,12 @@ app.get('/api', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/rentals', rentalRoutes);
+app.use('/api/listings', listingRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/payouts', payoutRoutes);
+app.use('/api/host', hostDashboardRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Catch-all 404 handler for unmatched routes
 app.use(notFoundMiddleware);
