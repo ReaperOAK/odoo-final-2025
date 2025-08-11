@@ -222,7 +222,9 @@ const ListingCard = ({
             {location && (
               <div className="flex items-center text-gray-600">
                 <MapPinIcon className="w-4 h-4 mr-1" />
-                <span className="text-sm truncate">{location}</span>
+                <span className="text-sm truncate">
+                  {typeof location === 'string' ? location : `${location.city}, ${location.state}`}
+                </span>
               </div>
             )}
             {createdAt && (

@@ -31,7 +31,7 @@ const Listings = () => {
     minPrice: searchParams.get("minPrice") || "",
     maxPrice: searchParams.get("maxPrice") || "",
     unitType: searchParams.get("unitType") || "",
-    sortBy: searchParams.get("sortBy") || "recent",
+    sortBy: searchParams.get("sortBy") || "newest",
     verifiedOnly: searchParams.get("verifiedOnly") === "true",
   });
 
@@ -42,25 +42,20 @@ const Listings = () => {
   });
 
   const categories = [
-    "Electronics & Gadgets",
-    "Camera & Photography",
-    "Audio & Music",
-    "Sports & Fitness",
-    "Outdoor & Adventure",
-    "Transportation",
-    "Tools & Equipment",
-    "Party & Events",
-    "Gaming",
-    "Home & Garden",
-    "Fashion & Accessories",
-    "Books & Media",
-    "Other",
+    { value: "electronics", label: "Electronics" },
+    { value: "furniture", label: "Furniture" },
+    { value: "appliances", label: "Appliances" },
+    { value: "tools", label: "Tools" },
+    { value: "sports", label: "Sports" },
+    { value: "books", label: "Books" },
+    { value: "clothing", label: "Clothing" },
+    { value: "vehicles", label: "Vehicles" },
+    { value: "other", label: "Other" },
   ];
 
   const sortOptions = [
-    { value: "recent", label: "Most Recent" },
-    { value: "price_low", label: "Price: Low to High" },
-    { value: "price_high", label: "Price: High to Low" },
+    { value: "newest", label: "Most Recent" },
+    { value: "price", label: "Price: Low to High" },
     { value: "rating", label: "Highest Rated" },
     { value: "popular", label: "Most Popular" },
   ];
@@ -102,8 +97,7 @@ const Listings = () => {
       if (response.success) {
         const {
           listings: newListings,
-          hasMore: hasMoreData,
-          totalCount,
+          pagination,
         } = response.data;
 
         if (reset) {
@@ -114,7 +108,7 @@ const Listings = () => {
           setPage((prev) => prev + 1);
         }
 
-        setHasMore(hasMoreData);
+        setHasMore(pagination.hasNext);
       } else {
         throw new Error(response.message || "Failed to load listings");
       }
@@ -150,7 +144,7 @@ const Listings = () => {
       minPrice: "",
       maxPrice: "",
       unitType: "",
-      sortBy: "recent",
+      sortBy: "newest",
       verifiedOnly: false,
     };
     setFilters(clearedFilters);
@@ -173,7 +167,7 @@ const Listings = () => {
   };
 
   const hasActiveFilters = Object.values(filters).some(
-    (value) => value !== "" && value !== "recent" && value !== false
+    (value) => value !== "" && value !== "newest" && value !== false
   );
 
   return (
@@ -250,7 +244,7 @@ const Listings = () => {
               <span className="ml-2 bg-primary-600 text-white text-xs px-2 py-1 rounded-full">
                 {
                   Object.values(filters).filter(
-                    (v) => v !== "" && v !== "recent" && v !== false
+                    (v) => v !== "" && v !== "newest" && v !== false
                   ).length
                 }
               </span>
@@ -276,8 +270,8 @@ const Listings = () => {
                 >
                   <option value="">All Categories</option>
                   {categories.map((category) => (
-                    <option key={category} value={category}>
-                      {category}
+                    <option key={category.value} value={category.value}>
+                      {category.label}
                     </option>
                   ))}
                 </select>

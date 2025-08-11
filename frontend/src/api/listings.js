@@ -8,12 +8,15 @@ export const listingsAPI = {
       
       if (params.from) queryParams.append('from', params.from);
       if (params.to) queryParams.append('to', params.to);
-      if (params.query) queryParams.append('query', params.query);
+      if (params.query) queryParams.append('search', params.query); // Changed from 'query' to 'search'
       if (params.category) queryParams.append('category', params.category);
-      if (params.location) queryParams.append('location', params.location);
+      if (params.location) queryParams.append('city', params.location); // Changed from 'location' to 'city'
       if (params.minPrice) queryParams.append('minPrice', params.minPrice);
       if (params.maxPrice) queryParams.append('maxPrice', params.maxPrice);
-      if (params.hostId) queryParams.append('hostId', params.hostId);
+      if (params.unitType) queryParams.append('unitType', params.unitType);
+      if (params.sortBy) queryParams.append('sortBy', params.sortBy);
+      if (params.verifiedOnly) queryParams.append('verifiedOnly', params.verifiedOnly);
+      if (params.hostId) queryParams.append('lenderId', params.hostId); // Changed from 'hostId' to 'lenderId'
       if (params.page) queryParams.append('page', params.page);
       if (params.limit) queryParams.append('limit', params.limit);
 
