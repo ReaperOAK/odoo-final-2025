@@ -130,15 +130,17 @@ const calculatePrice = (product, startTime, endTime, requestId = 'unknown') => {
       timestamp: Date.now()
     });
 
-    // Clean up expired cache entries
-    setTimeout(() => {
-      if (priceCache.has(cacheKey)) {
-        const entry = priceCache.get(cacheKey);
-        if (Date.now() - entry.timestamp >= CACHE_DURATION) {
-          priceCache.delete(cacheKey);
+    // Clean up expired cache entries (skip in test environment)
+    if (process.env.NODE_ENV?.trim() !== 'test' && typeof jest === 'undefined') {
+      setTimeout(() => {
+        if (priceCache.has(cacheKey)) {
+          const entry = priceCache.get(cacheKey);
+          if (Date.now() - entry.timestamp >= CACHE_DURATION) {
+            priceCache.delete(cacheKey);
+          }
         }
-      }
-    }, CACHE_DURATION);
+      }, CACHE_DURATION);
+    }
 
     logger.info('Price calculated', {
       productId: product._id,

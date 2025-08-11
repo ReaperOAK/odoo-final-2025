@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const RentalOrderSchema = new mongoose.Schema({
   customer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true, index: true },
+  quantity: { type: Number, required: true, min: 1, default: 1 },
   startTime: { type: Date, required: true, index: true },
   endTime: { type: Date, required: true, index: true },
   totalPrice: { type: Number, required: true },

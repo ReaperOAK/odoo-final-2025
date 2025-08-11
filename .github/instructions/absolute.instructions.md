@@ -1,64 +1,118 @@
 ---
 applyTo: '**'
 ---
-Top rules (repeat out loud)
-===========================
 
-1. **Buy time with UX** — seed data + fast flows so you demo in 60s.
-    
-2. **One golden path** — customer books, admin picks up, admin returns. Make that flawless.
-    
-3. **Availability logic is sacred** — protect it with DB transactions + simple retry if needed.
-    
-4. **No premature scale features** — no emails, no external payments (simulate), no maps.
+# 📝 Copilot Coding & Project Guidelines
 
-Best practices (must follow)
-============================
+## General Principles
 
-1. **Keep secrets out of repo** — `.env` only. Use `.env.example`.
-    
-2. **Strict input validation** — use `express-validator` or small manual checks; always sanitize dates.
-    
-3. **Time handling** — store & operate on UTC. Display in local time on client using `date-fns-tz` if needed.
-    
-4. **Indexes** — ensure indexes on fields used for queries (`product`, `status`, `startTime`, `endTime`).
-    
-5. **Error handling** — a single error middleware that returns `{ error: true, message }`.
-    
-6. **Logging** — `morgan` + minimal custom logger. Print request IDs in logs for debugging.
-    
-7. **Small payloads** — paginate admin rentals (limit 50). Use projection to avoid heavy doc loads.
-    
-8. **Client performance** — debounce availability & price calls (300ms), cancel previous axios requests on new change.
-    
-9. **Accessibility** — use semantic HTML for forms; alt text for images.
-    
-10. **Security headers** — `helmet`, enable CORS only for allowed origins.
-    
-11. **Use transactions** for booking creation** — as provided above.
-    
-12. **Seed & demo accounts** — script must create admin: `admin@demo.com / p@ssw0rd` and user `user@demo.com / p@ssw0rd`.
-    
-13. **One-liner start commands**:
-    
+- **Read before writing:** Review relevant docs, planning notes, and related files before editing or creating anything.
+- **No build artifacts:** Never create or modify anything inside `/build/` or equivalent output directories.
+- **Documentation required:** Update all relevant docs (`README.md`, feature docs, API docs, changelogs) after code changes. Update comments and `CONTRIBUTING.md` as needed.
+- **No orphan files:** Register new files/components in the correct modules, routes, or parent components.
 
-* backend: `npm run dev`
-    
-* frontend: `npm run dev`  
-    Put these in README for judges.
-    
+---
 
-* * *
+## File & Component Standards
 
-Performance & stability tips (quick wins)
-=========================================
+- **Follow structure:** Use the existing folder structure and naming conventions. Organize by feature, not file type.
+- **No unreferenced files:** All files must be imported and used somewhere.
 
-* Serve images from CDN or use small placeholders in demo.
-    
-* Avoid N+1 in backend queries: use `.populate()` only where needed.
-    
-* Limit response size: admin list endpoint supports `?limit=20&page=1`.
-    
-* For concurrent testing: run a small Node script that fires 20 `create` requests for the same slot—verify no overbookings.
-    
-* Keep DB indexes lean; don’t over-index.
+---
+
+## React-Specific Practices
+
+- **Component design:** Use pure, focused, reusable functional components and Hooks. Prefer composition over prop bloat.
+- **Performance:** Use `React.memo`, `useMemo`, and `useCallback` only after profiling. Code-split heavy components.
+- **State management:** Prefer `useState` > `useReducer` > `Context` > external state managers.
+- **UI/UX:** Always handle loading, error, and empty states. Use schema-based form validation. Ensure accessibility and theming via Tailwind or styled-components.
+
+---
+
+## Security
+
+- **Sanitize input and escape output.**
+- **No sensitive data in localStorage;** use HttpOnly cookies.
+- **Strict CORS and CSP headers.**
+
+---
+
+## Mindset & Principles
+
+- **Be intentional:** Every change should be justifiable.
+- **DRY, but avoid premature abstraction.**
+- **Refactor early and often.**
+- **Clarity over cleverness.**
+- **Stay informed:** Read RFCs, React updates, and changelogs.
+
+---
+
+## Anti-Patterns to Avoid
+
+- Prop drilling across too many layers.
+- `useEffect` without dependencies.
+- Modifying props directly.
+- Overusing Context.
+- Leaving files unreferenced or undocumented.
+
+---
+
+## Final Checklist Before Push
+
+- [ ] Code is clean, DRY, and self-explanatory.
+- [ ] All files are created, imported, and registered.
+- [ ] Docs updated.
+- [ ] No build directory touched.
+- [ ] Commit message follows repo rules.
+
+---
+
+## UI Design Instructions
+
+### Design System
+
+- Use consistent design tokens (spacing, font sizes, colors, etc.).
+- typographic scale for font sizes.
+- Minimal color palette; ensure WCAG contrast compliance.
+
+### Responsive Design
+
+- Mobile-first; use standard breakpoints.
+- Use Flexbox/Grid; avoid fixed px widths.
+
+### Component Guidelines
+
+- Modular, reusable, responsive components.
+- Handle empty, loading, and error states.
+- Standardized spacing and sizing.
+
+### UX Patterns
+
+- All interactive elements have hover, active, and disabled states.
+- Provide loading indicators for async actions.
+- Use semantic HTML and ARIA labels.
+- All components are keyboard navigable.
+
+### Visual Hierarchy
+
+- Use contrast, grouping, and whitespace for clarity.
+- Avoid visual noise and excessive decoration.
+
+### Tooling
+
+- Use TailwindCSS for styling.
+- Use shadcn/ui, Radix, or Headless UI for base components.
+- Use Framer Motion or Tailwind transitions for animation.
+- Use Lucide or Heroicons for icons.
+
+---
+
+
+## General Anti-Patterns
+
+- Mixing HTML and logic in the same file.
+- Catching exceptions without logging.
+- Using global state unnecessarily.
+- Not checking return values or error codes.
+
+---
