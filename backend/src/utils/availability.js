@@ -19,22 +19,22 @@ const AVAILABILITY_CACHE_DURATION = 10 * 1000; // 10 seconds for availability ch
 const getCachedProduct = async (productId, requestId) => {
   const cacheKey = `product-${productId}`;
   const cached = productCache.get(cacheKey);
-  
+
   if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
     logger.debug('Product cache hit', { productId, requestId });
     return cached.product;
   }
-  
+
   logger.startTimer('product-fetch', requestId);
   const product = await Product.findById(productId).lean(); // Using lean() for better performance
   logger.endTimer('product-fetch', requestId, { productId });
-  
+
   if (product) {
     productCache.set(cacheKey, {
       product,
       timestamp: Date.now()
     });
-    
+
     // Clean up expired cache entries (skip in test environment)
     if (process.env.NODE_ENV?.trim() !== 'test') {
       setTimeout(() => {
@@ -47,7 +47,7 @@ const getCachedProduct = async (productId, requestId) => {
       }, CACHE_DURATION);
     }
   }
-  
+
   return product;
 };
 
@@ -63,44 +63,44 @@ const getCachedProduct = async (productId, requestId) => {
 const checkAvailability = async (productId, startTime, endTime, qty = 1, requestId = 'unknown') => {
   try {
     logger.startTimer('availability-check', requestId);
-    
+
     // Create cache key for this availability check
     const cacheKey = `avail-${productId}-${startTime}-${endTime}-${qty}`;
     const cached = availabilityCache.get(cacheKey);
-    
+
     if (cached && (Date.now() - cached.timestamp) < AVAILABILITY_CACHE_DURATION) {
       logger.debug('Availability cache hit', { productId, requestId });
       logger.endTimer('availability-check', requestId, { result: 'cached' });
       return cached.result;
     }
-    
+
     // Input validation and sanitization
     if (!productId || !startTime || !endTime) {
       throw new AppError('Missing required parameters: productId, startTime, endTime', 400, ERROR_TYPES.VALIDATION);
     }
-    
+
     const start = new Date(startTime);
     const end = new Date(endTime);
-    
+
     // Validate dates
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
       throw new AppError('Invalid date format', 400, ERROR_TYPES.VALIDATION);
     }
-    
+
     if (end <= start) {
       throw new AppError('End time must be after start time', 400, ERROR_TYPES.VALIDATION);
     }
-    
+
     // Allow dates within 1 minute of current time to account for timezone differences
     const oneMinuteAgo = new Date(Date.now() - 60 * 1000);
     if (start <= oneMinuteAgo) {
-      logger.info('Start time is in the past', { 
-        productId, 
+      logger.info('Start time is in the past', {
+        productId,
         startTime,
         currentTime: new Date().toISOString(),
-        requestId 
+        requestId
       });
-      
+
       logger.endTimer('availability-check', requestId, { result: 'past-date' });
       return {
         isAvailable: false,
@@ -115,28 +115,28 @@ const checkAvailability = async (productId, startTime, endTime, qty = 1, request
         }
       };
     }
-    
+
     // Validate quantity
     if (qty < 1 || qty > 100) {
       throw new AppError('Quantity must be between 1 and 100', 400, ERROR_TYPES.VALIDATION);
     }
-    
+
     // Get product with caching
     const product = await getCachedProduct(productId, requestId);
     if (!product) {
       throw new AppError('Product not found', 404, ERROR_TYPES.NOT_FOUND);
     }
-    
-    
+
+
     // Check if product has sufficient stock
     if (product.stock < qty) {
-      logger.info('Insufficient total stock', { 
-        productId, 
-        requestedQty: qty, 
+      logger.info('Insufficient total stock', {
+        productId,
+        requestedQty: qty,
         totalStock: product.stock,
-        requestId 
+        requestId
       });
-      
+
       logger.endTimer('availability-check', requestId, { result: 'insufficient-stock' });
       return {
         isAvailable: false,
@@ -147,10 +147,10 @@ const checkAvailability = async (productId, startTime, endTime, qty = 1, request
         reason: 'insufficient_total_stock'
       };
     }
-    
+
     // Sum overlapping quantities from active bookings
     logger.startTimer('overlap-count', requestId);
-    
+
     // Use aggregation to sum quantities, not just count documents
     const overlappingResult = await RentalOrder.aggregate([
       {
@@ -167,17 +167,17 @@ const checkAvailability = async (productId, startTime, endTime, qty = 1, request
           totalQuantity: { $sum: '$quantity' }
         }
       }
-    ], { 
+    ], {
       maxTimeMS: 500  // Maximum 500ms timeout
     });
-    
+
     const overlappingQuantity = overlappingResult.length > 0 ? overlappingResult[0].totalQuantity : 0;
-    
+
     logger.endTimer('overlap-count', requestId, { overlappingQuantity });
-    
+
     const availableStock = product.stock - overlappingQuantity;
     const isAvailable = availableStock >= qty;
-    
+
     logger.info('Availability check completed', {
       productId,
       requestedQty: qty,
@@ -187,12 +187,12 @@ const checkAvailability = async (productId, startTime, endTime, qty = 1, request
       isAvailable,
       requestId
     });
-    
-    logger.endTimer('availability-check', requestId, { 
+
+    logger.endTimer('availability-check', requestId, {
       result: isAvailable ? 'available' : 'unavailable',
-      availableStock 
+      availableStock
     });
-    
+
     const result = {
       isAvailable,
       available: isAvailable, // Add for frontend compatibility
@@ -205,13 +205,13 @@ const checkAvailability = async (productId, startTime, endTime, qty = 1, request
         end: end.toISOString()
       }
     };
-    
+
     // Cache the result
     availabilityCache.set(cacheKey, {
       result,
       timestamp: Date.now()
     });
-    
+
     // Clean up expired availability cache entries (skip in test environment)
     if (process.env.NODE_ENV?.trim() !== 'test') {
       setTimeout(() => {
@@ -223,20 +223,20 @@ const checkAvailability = async (productId, startTime, endTime, qty = 1, request
         }
       }, AVAILABILITY_CACHE_DURATION);
     }
-    
+
     return result;
-    
+
   } catch (error) {
-    logger.error('Availability check failed', { 
-      productId, 
-      startTime, 
-      endTime, 
-      qty, 
+    logger.error('Availability check failed', {
+      productId,
+      startTime,
+      endTime,
+      qty,
       requestId,
       error: error.message,
       stack: error.stack
     });
-    
+
     // Re-throw AppError as-is, wrap others
     if (error.isOperational) {
       throw error;
@@ -253,10 +253,10 @@ const checkAvailability = async (productId, startTime, endTime, qty = 1, request
  */
 const checkBatchAvailability = async (requests, requestId = 'unknown') => {
   logger.startTimer('batch-availability', requestId);
-  
+
   try {
     const results = await Promise.all(
-      requests.map(req => 
+      requests.map(req =>
         checkAvailability(req.productId, req.startTime, req.endTime, req.qty, requestId)
           .catch(error => ({
             error: true,
@@ -265,7 +265,7 @@ const checkBatchAvailability = async (requests, requestId = 'unknown') => {
           }))
       )
     );
-    
+
     logger.endTimer('batch-availability', requestId, { count: requests.length });
     return results;
   } catch (error) {
@@ -284,13 +284,13 @@ const checkBatchAvailability = async (requests, requestId = 'unknown') => {
  */
 const getAvailabilityCalendar = async (productId, startDate, endDate, requestId = 'unknown') => {
   logger.startTimer('availability-calendar', requestId);
-  
+
   try {
     const product = await getCachedProduct(productId, requestId);
     if (!product) {
       throw new Error('Product not found');
     }
-    
+
     // Get all bookings in the date range
     const bookings = await RentalOrder.find({
       product: productId,
@@ -301,44 +301,44 @@ const getAvailabilityCalendar = async (productId, startDate, endDate, requestId 
         { startTime: { $lte: startDate }, endTime: { $gte: endDate } }
       ]
     }).lean();
-    
+
     const calendar = [];
     const currentDate = new Date(startDate);
-    
+
     while (currentDate <= endDate) {
       const dayStart = new Date(currentDate);
       dayStart.setHours(0, 0, 0, 0);
-      
+
       const dayEnd = new Date(currentDate);
       dayEnd.setHours(23, 59, 59, 999);
-      
-      const overlapping = bookings.filter(booking => 
+
+      const overlapping = bookings.filter(booking =>
         (booking.startTime < dayEnd && booking.endTime > dayStart)
       );
-      
+
       calendar.push({
         date: dayStart.toISOString().split('T')[0],
         availableStock: Math.max(0, product.stock - overlapping.length),
         totalStock: product.stock,
         overlappingBookings: overlapping.length
       });
-      
+
       currentDate.setDate(currentDate.getDate() + 1);
     }
-    
-    logger.endTimer('availability-calendar', requestId, { 
-      productId, 
-      days: calendar.length 
+
+    logger.endTimer('availability-calendar', requestId, {
+      productId,
+      days: calendar.length
     });
-    
+
     return calendar;
   } catch (error) {
-    logger.error('Availability calendar failed', { 
-      productId, 
-      startDate, 
-      endDate, 
+    logger.error('Availability calendar failed', {
+      productId,
+      startDate,
+      endDate,
       requestId,
-      error: error.message 
+      error: error.message
     });
     throw error;
   }
@@ -351,8 +351,8 @@ const clearProductCache = () => {
   logger.info('Product and availability cache cleared');
 };
 
-module.exports = { 
-  checkAvailability, 
+module.exports = {
+  checkAvailability,
   checkBatchAvailability,
   getAvailabilityCalendar,
   clearProductCache
