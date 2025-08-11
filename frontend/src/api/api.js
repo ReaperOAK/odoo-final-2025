@@ -37,4 +37,17 @@ api.interceptors.response.use(
   }
 )
 
+// Additional API functions for BookingWidget
+export const checkAvailability = async (productId, startDate, endDate) => {
+  return await api.get(`/rentals/availability/${productId}`, {
+    params: { startDate, endDate }
+  })
+}
+
+export const calculatePrice = async (productId, startDate, endDate) => {
+  return await api.get(`/rentals/price/${productId}`, {
+    params: { startDate, endDate }
+  })
+}
+
 export default api
