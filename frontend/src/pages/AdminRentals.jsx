@@ -35,7 +35,6 @@ export default function AdminRentals() {
       }
 
       const response = await rentalsAPI.getAllRentals(params);
-      console.log("Admin rentals response:", response);
       setRentals(response.data?.rentals || []);
     } catch (error) {
       console.error("Failed to fetch rentals:", error);

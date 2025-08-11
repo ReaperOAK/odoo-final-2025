@@ -35,8 +35,23 @@ export const AuthProvider = ({ children }) => {
   const login = async (credentials) => {
     try {
       const response = await authAPI.login(credentials);
-      console.log("Login response:", response);
-      const { token, user: userData } = response.data;
+
+      if (!response) {
+        return {
+          success: false,
+          error: "No response from server",
+        };
+      }
+
+      // The API returns token and user at the root level, not in a data object
+      const { token, user: userData } = response;
+
+      if (!token || !userData) {
+        return {
+          success: false,
+          error: "Missing authentication data",
+        };
+      }
 
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(userData));
@@ -46,7 +61,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.message || "Login failed",
+        error: error.response?.data?.message || error.message || "Login failed",
       };
     }
   };
@@ -54,8 +69,8 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       const response = await authAPI.register(userData);
-      console.log("Register response:", response);
-      const { token, user: newUser } = response.data;
+      // The API returns token and user at the root level, not in a data object
+      const { token, user: newUser } = response;
 
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(newUser));
