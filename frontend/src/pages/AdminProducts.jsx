@@ -1,46 +1,53 @@
-import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import { productsAPI } from '../api/products'
-import { PlusIcon, PencilIcon, TrashIcon, PhotoIcon, CubeIcon } from '@heroicons/react/24/outline'
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { productsAPI } from "../api/products";
+import {
+  PlusIcon,
+  PencilIcon,
+  TrashIcon,
+  PhotoIcon,
+  CubeIcon,
+} from "@heroicons/react/24/outline";
 
 export default function AdminProducts() {
-  const [products, setProducts] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [showAddModal, setShowAddModal] = useState(false)
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showAddModal, setShowAddModal] = useState(false);
 
   useEffect(() => {
-    fetchProducts()
-  }, [])
+    fetchProducts();
+  }, []);
 
   const fetchProducts = async () => {
     try {
-      setLoading(true)
-      const data = await productsAPI.getProducts({ limit: 100 })
-      setProducts(data.products || [])
+      setLoading(true);
+      const data = await productsAPI.getProducts({ limit: 100 });
+      setProducts(data.products || []);
     } catch (error) {
-      console.error('Failed to fetch products:', error)
+      console.error("Failed to fetch products:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleDeleteProduct = async (productId) => {
-    if (!confirm('Are you sure you want to delete this product?')) return
+    if (!confirm("Are you sure you want to delete this product?")) return;
 
     try {
-      await productsAPI.deleteProduct(productId)
-      await fetchProducts() // Refresh the list
+      await productsAPI.deleteProduct(productId);
+      await fetchProducts(); // Refresh the list
     } catch (error) {
-      console.error('Failed to delete product:', error)
-      alert('Failed to delete product. Please try again.')
+      console.error("Failed to delete product:", error);
+      alert("Failed to delete product. Please try again.");
     }
-  }
+  };
 
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.description.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filteredProducts = products.filter(
+    (product) =>
+      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.description.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   if (loading) {
     return (
@@ -61,7 +68,7 @@ export default function AdminProducts() {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -70,8 +77,12 @@ export default function AdminProducts() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Manage Products</h1>
-            <p className="text-gray-600">Add, edit, and manage your rental inventory</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              Manage Products
+            </h1>
+            <p className="text-gray-600">
+              Add, edit, and manage your rental inventory
+            </p>
           </div>
           <button
             onClick={() => setShowAddModal(true)}
@@ -117,13 +128,12 @@ export default function AdminProducts() {
               <CubeIcon className="w-12 h-12 text-gray-400" />
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {searchTerm ? 'No products found' : 'No products yet'}
+              {searchTerm ? "No products found" : "No products yet"}
             </h3>
             <p className="text-gray-600 mb-4">
-              {searchTerm 
+              {searchTerm
                 ? `No results for "${searchTerm}"`
-                : 'Get started by adding your first product to the inventory'
-              }
+                : "Get started by adding your first product to the inventory"}
             </p>
             {!searchTerm && (
               <button
@@ -141,9 +151,12 @@ export default function AdminProducts() {
         {showAddModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Add New Product</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Add New Product
+              </h3>
               <p className="text-gray-600 mb-4">
-                Product creation form would go here. For this demo, please use the backend API directly or seeded data.
+                Product creation form would go here. For this demo, please use
+                the backend API directly or seeded data.
               </p>
               <div className="flex justify-end space-x-3">
                 <button
@@ -164,13 +177,13 @@ export default function AdminProducts() {
         )}
       </div>
     </div>
-  )
+  );
 }
 
 function ProductAdminCard({ product, onDelete }) {
-  const primaryImage = product.images?.[0] || null
-  const basePrice = product.pricing?.[0]?.rate || 0
-  const priceUnit = product.pricing?.[0]?.unit || 'day'
+  const primaryImage = product.images?.[0] || null;
+  const basePrice = product.pricing?.[0]?.rate || 0;
+  const priceUnit = product.pricing?.[0]?.unit || "day";
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -187,16 +200,18 @@ function ProductAdminCard({ product, onDelete }) {
             <PhotoIcon className="w-12 h-12 text-gray-400" />
           </div>
         )}
-        
+
         {/* Stock Badge */}
         <div className="absolute top-3 right-3">
-          <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-            product.stock > 5
-              ? 'bg-green-100 text-green-800'
-              : product.stock > 0
-              ? 'bg-yellow-100 text-yellow-800'
-              : 'bg-red-100 text-red-800'
-          }`}>
+          <div
+            className={`px-2 py-1 rounded-full text-xs font-medium ${
+              product.stock > 5
+                ? "bg-green-100 text-green-800"
+                : product.stock > 0
+                ? "bg-yellow-100 text-yellow-800"
+                : "bg-red-100 text-red-800"
+            }`}
+          >
             {product.stock} in stock
           </div>
         </div>
@@ -216,7 +231,9 @@ function ProductAdminCard({ product, onDelete }) {
         <div className="flex items-center justify-between mb-4">
           <div className="text-2xl font-bold text-brand">
             ${basePrice}
-            <span className="text-sm text-gray-500 font-normal">/{priceUnit}</span>
+            <span className="text-sm text-gray-500 font-normal">
+              /{priceUnit}
+            </span>
           </div>
           <div className="flex items-center text-sm text-gray-500">
             <CubeIcon className="w-4 h-4 mr-1" />
@@ -233,7 +250,9 @@ function ProductAdminCard({ product, onDelete }) {
             View
           </Link>
           <button
-            onClick={() => alert('Edit functionality would be implemented here')}
+            onClick={() =>
+              alert("Edit functionality would be implemented here")
+            }
             className="flex items-center justify-center bg-brand text-white p-2 rounded-lg hover:bg-blue-700 transition-colors"
           >
             <PencilIcon className="w-4 h-4" />
@@ -247,5 +266,5 @@ function ProductAdminCard({ product, onDelete }) {
         </div>
       </div>
     </div>
-  )
+  );
 }

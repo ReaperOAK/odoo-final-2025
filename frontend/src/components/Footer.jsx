@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link } from "react-router-dom";
 
 export default function Footer() {
   return (
@@ -14,12 +14,15 @@ export default function Footer() {
               <span className="ml-2 text-xl font-bold">RentEasy</span>
             </div>
             <p className="text-gray-400 max-w-md">
-              Your trusted partner for equipment rentals. Fast, reliable, and affordable rental solutions for all your needs.
+              Your trusted partner for equipment rentals. Fast, reliable, and
+              affordable rental solutions for all your needs.
             </p>
             <div className="mt-6">
               <p className="text-sm text-gray-400">
-                Demo credentials:<br />
-                Admin: admin@demo.com / p@ssw0rd<br />
+                Demo credentials:
+                <br />
+                Admin: admin@demo.com / p@ssw0rd
+                <br />
                 User: user@demo.com / p@ssw0rd
               </p>
             </div>
@@ -30,22 +33,34 @@ export default function Footer() {
             <h3 className="text-lg font-semibold mb-4">Quick Links</h3>
             <ul className="space-y-2">
               <li>
-                <Link to="/" className="text-gray-400 hover:text-white transition-colors">
+                <Link
+                  to="/"
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
                   Home
                 </Link>
               </li>
               <li>
-                <Link to="/products" className="text-gray-400 hover:text-white transition-colors">
+                <Link
+                  to="/products"
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
                   Products
                 </Link>
               </li>
               <li>
-                <Link to="/login" className="text-gray-400 hover:text-white transition-colors">
+                <Link
+                  to="/login"
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
                   Login
                 </Link>
               </li>
               <li>
-                <Link to="/register" className="text-gray-400 hover:text-white transition-colors">
+                <Link
+                  to="/register"
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
                   Sign Up
                 </Link>
               </li>
@@ -75,10 +90,16 @@ export default function Footer() {
               &copy; 2025 RentEasy. Built for Odoo Hackathon 2025.
             </p>
             <div className="flex space-x-6 mt-4 md:mt-0">
-              <a href="#" className="text-gray-400 hover:text-white transition-colors text-sm">
+              <a
+                href="#"
+                className="text-gray-400 hover:text-white transition-colors text-sm"
+              >
                 Privacy Policy
               </a>
-              <a href="#" className="text-gray-400 hover:text-white transition-colors text-sm">
+              <a
+                href="#"
+                className="text-gray-400 hover:text-white transition-colors text-sm"
+              >
                 Terms of Service
               </a>
             </div>
@@ -86,5 +107,5 @@ export default function Footer() {
         </div>
       </div>
     </footer>
-  )
+  );
 }

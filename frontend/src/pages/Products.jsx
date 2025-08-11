@@ -1,58 +1,66 @@
-import { useState, useEffect } from 'react'
-import ProductCard from '../components/ProductCard'
-import { productsAPI } from '../api/products'
-import { MagnifyingGlassIcon, FunnelIcon, Squares2X2Icon, ListBulletIcon } from '@heroicons/react/24/outline'
+import { useState, useEffect } from "react";
+import ProductCard from "../components/ProductCard";
+import { productsAPI } from "../api/products";
+import {
+  MagnifyingGlassIcon,
+  FunnelIcon,
+  Squares2X2Icon,
+  ListBulletIcon,
+} from "@heroicons/react/24/outline";
 
 export default function Products() {
-  const [products, setProducts] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [sortBy, setSortBy] = useState('name')
-  const [viewMode, setViewMode] = useState('grid') // grid or list
-  const [currentPage, setCurrentPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState("name");
+  const [viewMode, setViewMode] = useState("grid"); // grid or list
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
-    fetchProducts()
-  }, [searchTerm, sortBy, currentPage])
+    fetchProducts();
+  }, [searchTerm, sortBy, currentPage]);
 
   const fetchProducts = async () => {
     try {
-      setLoading(true)
+      setLoading(true);
       const params = {
         page: currentPage,
         limit: 12,
         search: searchTerm,
-        sort: sortBy
-      }
-      
-      const data = await productsAPI.getProducts(params)
-      setProducts(data.products || [])
-      setTotalPages(Math.ceil((data.total || 0) / 12))
+        sort: sortBy,
+      };
+
+      const data = await productsAPI.getProducts(params);
+      setProducts(data.products || []);
+      setTotalPages(Math.ceil((data.total || 0) / 12));
     } catch (error) {
-      console.error('Failed to fetch products:', error)
+      console.error("Failed to fetch products:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleSearch = (e) => {
-    setSearchTerm(e.target.value)
-    setCurrentPage(1) // Reset to first page on search
-  }
+    setSearchTerm(e.target.value);
+    setCurrentPage(1); // Reset to first page on search
+  };
 
   const handleSortChange = (e) => {
-    setSortBy(e.target.value)
-    setCurrentPage(1)
-  }
+    setSortBy(e.target.value);
+    setCurrentPage(1);
+  };
 
   const renderPagination = () => {
-    if (totalPages <= 1) return null
+    if (totalPages <= 1) return null;
 
-    const pages = []
-    const maxVisiblePages = 5
-    const startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2))
-    const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1)
+    const pages = [];
+    const maxVisiblePages = 5;
+    const startPage = Math.max(
+      1,
+      currentPage - Math.floor(maxVisiblePages / 2)
+    );
+    const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
 
     for (let i = startPage; i <= endPage; i++) {
       pages.push(
@@ -61,13 +69,13 @@ export default function Products() {
           onClick={() => setCurrentPage(i)}
           className={`px-3 py-2 mx-1 rounded-md text-sm font-medium transition-colors ${
             i === currentPage
-              ? 'bg-brand text-white'
-              : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+              ? "bg-brand text-white"
+              : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
           }`}
         >
           {i}
         </button>
-      )
+      );
     }
 
     return (
@@ -88,16 +96,20 @@ export default function Products() {
           Next
         </button>
       </div>
-    )
-  }
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Browse Equipment</h1>
-          <p className="text-gray-600">Find the perfect equipment for your project</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Browse Equipment
+          </h1>
+          <p className="text-gray-600">
+            Find the perfect equipment for your project
+          </p>
         </div>
 
         {/* Filters and Search */}
@@ -137,17 +149,21 @@ export default function Products() {
               {/* View Mode */}
               <div className="flex items-center border border-gray-300 rounded-lg">
                 <button
-                  onClick={() => setViewMode('grid')}
+                  onClick={() => setViewMode("grid")}
                   className={`p-2 rounded-l-lg ${
-                    viewMode === 'grid' ? 'bg-brand text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
+                    viewMode === "grid"
+                      ? "bg-brand text-white"
+                      : "bg-white text-gray-600 hover:bg-gray-50"
                   }`}
                 >
                   <Squares2X2Icon className="h-5 w-5" />
                 </button>
                 <button
-                  onClick={() => setViewMode('list')}
+                  onClick={() => setViewMode("list")}
                   className={`p-2 rounded-r-lg ${
-                    viewMode === 'list' ? 'bg-brand text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
+                    viewMode === "list"
+                      ? "bg-brand text-white"
+                      : "bg-white text-gray-600 hover:bg-gray-50"
                   }`}
                 >
                   <ListBulletIcon className="h-5 w-5" />
@@ -159,13 +175,18 @@ export default function Products() {
 
         {/* Products Grid/List */}
         {loading ? (
-          <div className={`grid gap-6 ${
-            viewMode === 'grid' 
-              ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' 
-              : 'grid-cols-1'
-          }`}>
+          <div
+            className={`grid gap-6 ${
+              viewMode === "grid"
+                ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                : "grid-cols-1"
+            }`}
+          >
             {[...Array(12)].map((_, i) => (
-              <div key={i} className="bg-white rounded-xl shadow-sm p-6 animate-pulse">
+              <div
+                key={i}
+                className="bg-white rounded-xl shadow-sm p-6 animate-pulse"
+              >
                 <div className="w-full h-48 bg-gray-200 rounded-lg mb-4"></div>
                 <div className="h-4 bg-gray-200 rounded mb-2"></div>
                 <div className="h-3 bg-gray-200 rounded mb-4 w-2/3"></div>
@@ -175,11 +196,13 @@ export default function Products() {
           </div>
         ) : products.length > 0 ? (
           <>
-            <div className={`grid gap-6 ${
-              viewMode === 'grid' 
-                ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' 
-                : 'grid-cols-1'
-            }`}>
+            <div
+              className={`grid gap-6 ${
+                viewMode === "grid"
+                  ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                  : "grid-cols-1"
+              }`}
+            >
               {products.map((product) => (
                 <ProductCard key={product._id} product={product} />
               ))}
@@ -191,15 +214,19 @@ export default function Products() {
             <div className="w-24 h-24 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
               <MagnifyingGlassIcon className="w-12 h-12 text-gray-400" />
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No products found</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              No products found
+            </h3>
             <p className="text-gray-600 mb-4">
-              {searchTerm ? `No results for "${searchTerm}"` : 'No products available at the moment'}
+              {searchTerm
+                ? `No results for "${searchTerm}"`
+                : "No products available at the moment"}
             </p>
             {searchTerm && (
               <button
                 onClick={() => {
-                  setSearchTerm('')
-                  setCurrentPage(1)
+                  setSearchTerm("");
+                  setCurrentPage(1);
                 }}
                 className="text-brand hover:text-blue-700 font-medium"
               >
@@ -210,5 +237,5 @@ export default function Products() {
         )}
       </div>
     </div>
-  )
+  );
 }

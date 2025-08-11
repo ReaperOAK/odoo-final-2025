@@ -1,59 +1,64 @@
-import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import { rentalsAPI } from '../api/rentals'
-import StatusChip from '../components/StatusChip'
-import { format } from 'date-fns'
-import { CalendarIcon, CurrencyDollarIcon, ClockIcon, PhotoIcon } from '@heroicons/react/24/outline'
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { rentalsAPI } from "../api/rentals";
+import StatusChip from "../components/StatusChip";
+import { format } from "date-fns";
+import {
+  CalendarIcon,
+  CurrencyDollarIcon,
+  ClockIcon,
+  PhotoIcon,
+} from "@heroicons/react/24/outline";
 
 export default function MyBookings() {
-  const [bookings, setBookings] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState('all') // all, confirmed, picked_up, returned, cancelled
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("all"); // all, confirmed, picked_up, returned, cancelled
 
   useEffect(() => {
-    fetchBookings()
-  }, [])
+    fetchBookings();
+  }, []);
 
   const fetchBookings = async () => {
     try {
-      setLoading(true)
-      const data = await rentalsAPI.getMyRentals()
-      setBookings(data.rentals || [])
+      setLoading(true);
+      const data = await rentalsAPI.getMyRentals();
+      setBookings(data.rentals || []);
     } catch (error) {
-      console.error('Failed to fetch bookings:', error)
+      console.error("Failed to fetch bookings:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleCancelBooking = async (bookingId) => {
-    if (!confirm('Are you sure you want to cancel this booking?')) return
+    if (!confirm("Are you sure you want to cancel this booking?")) return;
 
     try {
-      await rentalsAPI.cancelRental(bookingId)
-      await fetchBookings() // Refresh the list
+      await rentalsAPI.cancelRental(bookingId);
+      await fetchBookings(); // Refresh the list
     } catch (error) {
-      console.error('Failed to cancel booking:', error)
-      alert('Failed to cancel booking. Please try again.')
+      console.error("Failed to cancel booking:", error);
+      alert("Failed to cancel booking. Please try again.");
     }
-  }
+  };
 
-  const filteredBookings = bookings.filter(booking => {
-    if (filter === 'all') return true
-    return booking.status === filter
-  })
+  const filteredBookings = bookings.filter((booking) => {
+    if (filter === "all") return true;
+    return booking.status === filter;
+  });
 
   const getStatusCounts = () => {
     return {
       all: bookings.length,
-      confirmed: bookings.filter(b => b.status === 'confirmed').length,
-      picked_up: bookings.filter(b => b.status === 'picked_up').length,
-      returned: bookings.filter(b => b.status === 'returned').length,
-      cancelled: bookings.filter(b => b.status === 'cancelled').length,
-    }
-  }
+      confirmed: bookings.filter((b) => b.status === "confirmed").length,
+      picked_up: bookings.filter((b) => b.status === "picked_up").length,
+      returned: bookings.filter((b) => b.status === "returned").length,
+      cancelled: bookings.filter((b) => b.status === "cancelled").length,
+    };
+  };
 
-  const statusCounts = getStatusCounts()
+  const statusCounts = getStatusCounts();
 
   if (loading) {
     return (
@@ -78,7 +83,7 @@ export default function MyBookings() {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -94,19 +99,35 @@ export default function MyBookings() {
         <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
           <div className="flex flex-wrap gap-2">
             {[
-              { key: 'all', label: 'All Bookings', count: statusCounts.all },
-              { key: 'confirmed', label: 'Confirmed', count: statusCounts.confirmed },
-              { key: 'picked_up', label: 'Active', count: statusCounts.picked_up },
-              { key: 'returned', label: 'Completed', count: statusCounts.returned },
-              { key: 'cancelled', label: 'Cancelled', count: statusCounts.cancelled },
+              { key: "all", label: "All Bookings", count: statusCounts.all },
+              {
+                key: "confirmed",
+                label: "Confirmed",
+                count: statusCounts.confirmed,
+              },
+              {
+                key: "picked_up",
+                label: "Active",
+                count: statusCounts.picked_up,
+              },
+              {
+                key: "returned",
+                label: "Completed",
+                count: statusCounts.returned,
+              },
+              {
+                key: "cancelled",
+                label: "Cancelled",
+                count: statusCounts.cancelled,
+              },
             ].map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setFilter(tab.key)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   filter === tab.key
-                    ? 'bg-brand text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    ? "bg-brand text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 }`}
               >
                 {tab.label} ({tab.count})
@@ -132,15 +153,14 @@ export default function MyBookings() {
               <CalendarIcon className="w-12 h-12 text-gray-400" />
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {filter === 'all' ? 'No bookings yet' : `No ${filter} bookings`}
+              {filter === "all" ? "No bookings yet" : `No ${filter} bookings`}
             </h3>
             <p className="text-gray-600 mb-4">
-              {filter === 'all' 
+              {filter === "all"
                 ? "You haven't made any equipment rentals yet."
-                : `You don't have any ${filter} bookings at the moment.`
-              }
+                : `You don't have any ${filter} bookings at the moment.`}
             </p>
-            {filter === 'all' && (
+            {filter === "all" && (
               <Link
                 to="/products"
                 className="inline-flex items-center bg-brand text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
@@ -152,12 +172,13 @@ export default function MyBookings() {
         )}
       </div>
     </div>
-  )
+  );
 }
 
 function BookingCard({ booking, onCancel }) {
-  const product = booking.product
-  const canCancel = booking.status === 'confirmed' && new Date(booking.startDate) > new Date()
+  const product = booking.product;
+  const canCancel =
+    booking.status === "confirmed" && new Date(booking.startDate) > new Date();
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -185,12 +206,14 @@ function BookingCard({ booking, onCancel }) {
             <div className="flex items-start justify-between">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                  {product?.name || 'Product not found'}
+                  {product?.name || "Product not found"}
                 </h3>
                 <StatusChip status={booking.status} />
               </div>
               <div className="text-right">
-                <div className="text-2xl font-bold text-brand">${booking.totalPrice}</div>
+                <div className="text-2xl font-bold text-brand">
+                  ${booking.totalPrice}
+                </div>
                 <div className="text-sm text-gray-500">Total Cost</div>
               </div>
             </div>
@@ -200,7 +223,9 @@ function BookingCard({ booking, onCancel }) {
                 <CalendarIcon className="w-4 h-4 mr-2" />
                 <div>
                   <div className="font-medium">Start Date</div>
-                  <div>{format(new Date(booking.startDate), 'MMM dd, yyyy HH:mm')}</div>
+                  <div>
+                    {format(new Date(booking.startDate), "MMM dd, yyyy HH:mm")}
+                  </div>
                 </div>
               </div>
 
@@ -208,7 +233,9 @@ function BookingCard({ booking, onCancel }) {
                 <ClockIcon className="w-4 h-4 mr-2" />
                 <div>
                   <div className="font-medium">End Date</div>
-                  <div>{format(new Date(booking.endDate), 'MMM dd, yyyy HH:mm')}</div>
+                  <div>
+                    {format(new Date(booking.endDate), "MMM dd, yyyy HH:mm")}
+                  </div>
                 </div>
               </div>
 
@@ -217,7 +244,12 @@ function BookingCard({ booking, onCancel }) {
                 <div>
                   <div className="font-medium">Duration</div>
                   <div>
-                    {Math.ceil((new Date(booking.endDate) - new Date(booking.startDate)) / (1000 * 60 * 60 * 24))} day(s)
+                    {Math.ceil(
+                      (new Date(booking.endDate) -
+                        new Date(booking.startDate)) /
+                        (1000 * 60 * 60 * 24)
+                    )}{" "}
+                    day(s)
                   </div>
                 </div>
               </div>
@@ -233,9 +265,9 @@ function BookingCard({ booking, onCancel }) {
             {/* Actions */}
             <div className="mt-4 flex items-center justify-between">
               <div className="text-xs text-gray-500">
-                Booked on {format(new Date(booking.createdAt), 'MMM dd, yyyy')}
+                Booked on {format(new Date(booking.createdAt), "MMM dd, yyyy")}
               </div>
-              
+
               <div className="flex space-x-3">
                 {product && (
                   <Link
@@ -245,7 +277,7 @@ function BookingCard({ booking, onCancel }) {
                     View Product
                   </Link>
                 )}
-                
+
                 {canCancel && (
                   <button
                     onClick={() => onCancel(booking._id)}
@@ -260,5 +292,5 @@ function BookingCard({ booking, onCancel }) {
         </div>
       </div>
     </div>
-  )
+  );
 }
