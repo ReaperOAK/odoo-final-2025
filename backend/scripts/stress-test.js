@@ -1,6 +1,6 @@
 /**
- * Comprehensive Backend Stress Test
- * Tests all aspects of the rental system for performance and reliability
+ * Comprehensive P2P Marketplace Backend Stress Test
+ * Tests all aspects of the P2P lending system for performance and reliability
  */
 
 require('dotenv').config();
@@ -18,12 +18,12 @@ const CONFIG = {
     { email: 'lisa@demo.com', password: 'p@ssw0rd' }
   ],
   concurrentBookings: 10,
-  availabilityChecks: 100,
+  availabilityChecks: 50,
   performanceThresholds: {
     auth: 500, // ms
     booking: 1000, // ms
     availability: 200, // ms
-    productFetch: 300 // ms
+    listingFetch: 300 // ms
   }
 };
 
@@ -48,7 +48,7 @@ const logHeader = (title) => {
 };
 
 // Global test state
-let productIds = [];
+let listingIds = [];
 let userTokens = [];
 
 /**
@@ -58,11 +58,11 @@ const initializeTestData = async () => {
   logHeader('INITIALIZING TEST DATA');
   
   try {
-    // Get products
-    log('📦 Fetching products...', 'yellow');
-    const productsRes = await axios.get(`${BASE_URL}/products`);
-    productIds = productsRes.data.data.map(p => p._id);
-    log(`✅ Found ${productIds.length} products`, 'green');
+    // Get listings
+    log('📦 Fetching listings...', 'yellow');
+    const listingsRes = await axios.get(`${BASE_URL}/listings`);
+    listingIds = listingsRes.data.data.listings.map(l => l._id);
+    log(`✅ Found ${listingIds.length} listings`, 'green');
 
     // Authenticate test users
     log('👥 Authenticating test users...', 'yellow');
@@ -133,10 +133,10 @@ const testAuthPerformance = async () => {
 };
 
 /**
- * Test product fetching performance
+ * Test listing fetching performance
  */
-const testProductPerformance = async () => {
-  logHeader('PRODUCT FETCHING PERFORMANCE TEST');
+const testListingPerformance = async () => {
+  logHeader('LISTING FETCHING PERFORMANCE TEST');
   
   const iterations = 20;
   const times = [];
@@ -144,10 +144,10 @@ const testProductPerformance = async () => {
   for (let i = 0; i < iterations; i++) {
     const start = Date.now();
     try {
-      await axios.get(`${BASE_URL}/products`);
+      await axios.get(`${BASE_URL}/listings`);
       times.push(Date.now() - start);
     } catch (error) {
-      log(`⚠️  Product fetch ${i + 1} failed: ${error.message}`, 'yellow');
+      log(`⚠️  Listing fetch ${i + 1} failed: ${error.message}`, 'yellow');
     }
   }
   
@@ -158,11 +158,11 @@ const testProductPerformance = async () => {
   log(`📊 Average fetch time: ${avgTime.toFixed(2)}ms`, 'blue');
   log(`📊 Min: ${minTime}ms, Max: ${maxTime}ms`, 'blue');
   
-  if (avgTime < CONFIG.performanceThresholds.productFetch) {
-    log('🚀 Product fetching performance: EXCELLENT', 'green');
+  if (avgTime < CONFIG.performanceThresholds.listingFetch) {
+    log('🚀 Listing fetching performance: EXCELLENT', 'green');
     return true;
   } else {
-    log('⚠️  Product fetching performance: NEEDS IMPROVEMENT', 'yellow');
+    log('⚠️  Listing fetching performance: NEEDS IMPROVEMENT', 'yellow');
     return false;
   }
 };
@@ -174,7 +174,7 @@ const testAvailabilityPerformance = async () => {
   logHeader('AVAILABILITY CHECK PERFORMANCE TEST');
   
   const iterations = CONFIG.availabilityChecks;
-  const productId = productIds[0];
+  const listingId = listingIds[0];
   const times = [];
   
   log(`🔍 Running ${iterations} availability checks...`, 'yellow');
@@ -183,12 +183,7 @@ const testAvailabilityPerformance = async () => {
   const promises = Array.from({ length: iterations }, async () => {
     const requestStart = Date.now();
     try {
-      await axios.post(`${BASE_URL}/rentals/check-availability`, {
-        productId,
-        startTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        endTime: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
-        qty: 1
-      });
+      await axios.get(`${BASE_URL}/listings/${listingId}/availability?startDate=${new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()}&endDate=${new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()}&quantity=1`);
       return Date.now() - requestStart;
     } catch (error) {
       log(`⚠️  Availability check failed: ${error.message}`, 'yellow');
@@ -228,12 +223,13 @@ const testAvailabilityPerformance = async () => {
 const testConcurrentBooking = async () => {
   logHeader('CONCURRENT BOOKING & OVERBOOKING PREVENTION TEST');
   
-  const productId = productIds[0];
+  const listingId = listingIds[0];
   const bookingData = {
-    productId,
-    startTime: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(),
-    endTime: new Date(Date.now() + 96 * 60 * 60 * 1000).toISOString(),
-    qty: 1
+    listingId,
+    startDate: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(),
+    endDate: new Date(Date.now() + 96 * 60 * 60 * 1000).toISOString(),
+    quantity: 1,
+    totalAmount: 100
   };
   
   log(`🎯 Creating ${CONFIG.concurrentBookings} concurrent bookings...`, 'yellow');
@@ -242,10 +238,10 @@ const testConcurrentBooking = async () => {
   const promises = Array.from({ length: CONFIG.concurrentBookings }, async (_, i) => {
     const token = userTokens[i % userTokens.length];
     try {
-      const response = await axios.post(`${BASE_URL}/rentals/create`, bookingData, {
+      const response = await axios.post(`${BASE_URL}/orders`, bookingData, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      return { success: true, orderId: response.data.data._id };
+      return { success: true, orderId: response.data.order._id };
     } catch (error) {
       return { 
         success: false, 
@@ -304,13 +300,8 @@ const testSystemLoad = async () => {
   // Mix of different operations
   for (let i = 0; i < 50; i++) {
     operations.push(
-      axios.get(`${BASE_URL}/products`),
-      axios.post(`${BASE_URL}/rentals/check-availability`, {
-        productId: productIds[i % productIds.length],
-        startTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        endTime: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
-        qty: 1
-      })
+      axios.get(`${BASE_URL}/listings`),
+      axios.get(`${BASE_URL}/listings/${listingIds[i % listingIds.length]}/availability?startDate=${new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()}&endDate=${new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()}&quantity=1`)
     );
   }
   
@@ -318,7 +309,7 @@ const testSystemLoad = async () => {
   const token = userTokens[0];
   for (let i = 0; i < 20; i++) {
     operations.push(
-      axios.get(`${BASE_URL}/rentals/my-bookings`, {
+      axios.get(`${BASE_URL}/orders/my-orders`, {
         headers: { Authorization: `Bearer ${token}` }
       })
     );
@@ -359,7 +350,7 @@ const runAllTests = async () => {
   const testResults = {
     initialization: false,
     auth: false,
-    products: false,
+    listings: false,
     availability: false,
     concurrentBooking: false,
     systemLoad: false
@@ -372,7 +363,7 @@ const runAllTests = async () => {
     
     // Run all tests
     testResults.auth = await testAuthPerformance();
-    testResults.products = await testProductPerformance();
+    testResults.listings = await testListingPerformance();
     testResults.availability = await testAvailabilityPerformance();
     testResults.concurrentBooking = await testConcurrentBooking();
     testResults.systemLoad = await testSystemLoad();

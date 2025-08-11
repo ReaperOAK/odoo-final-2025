@@ -1,17 +1,7 @@
 const express = require('express');
 const { body, param, query } = require('express-validator');
 const authMiddleware = require('../middleware/auth.middleware');
-
-/**
- * @route   POST /api/listings
- * @desc    Create a new listing
- * @access  Private (Any user can lend)
- */
-router.post('/',
-  authMiddleware.requireAuth,
-  createListingValidation,
-  ListingController.createListing
-);
+const ListingController = require('../controllers/listing.controller');
 
 const router = express.Router();
 
