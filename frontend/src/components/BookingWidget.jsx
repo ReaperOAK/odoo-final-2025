@@ -138,7 +138,8 @@ export default function BookingWidget({ product, onBook }) {
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-600">
-                ${price.breakdown?.dailyRate} × {price.breakdown?.days} day{price.breakdown?.days > 1 ? "s" : ""}
+                ${price.breakdown?.dailyRate} × {price.breakdown?.days} day
+                {price.breakdown?.days > 1 ? "s" : ""}
               </span>
               <span className="font-medium">${price.breakdown?.basePrice}</span>
             </div>

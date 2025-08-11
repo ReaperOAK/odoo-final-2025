@@ -41,27 +41,27 @@ export default function Home() {
           <div className="absolute -bottom-32 -left-32 w-96 h-96 bg-white/5 rounded-full blur-3xl"></div>
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-white/5 to-transparent rounded-full blur-3xl"></div>
         </div>
-        
+
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <div className="inline-flex items-center bg-white/10 backdrop-blur-sm text-white px-4 py-2 rounded-full text-sm font-medium mb-6 border border-white/20">
               <SparklesIcon className="w-4 h-4 mr-2" />
               Professional Equipment Rental Platform
             </div>
-            
+
             <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight">
               Equipment Rental
               <span className="block bg-gradient-to-r from-yellow-300 via-yellow-200 to-yellow-100 bg-clip-text text-transparent">
                 Made Simple
               </span>
             </h1>
-            
+
             <p className="text-lg sm:text-xl lg:text-2xl text-blue-100 mb-10 max-w-4xl mx-auto leading-relaxed">
               Access professional equipment for your projects instantly. From
               cameras to laptops, find everything you need with transparent
               pricing and real-time availability.
             </p>
-            
+
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
               <Link
                 to="/products"
@@ -86,7 +86,7 @@ export default function Home() {
       <section className="py-20 lg:py-32 bg-white relative">
         {/* Subtle background pattern */}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(59,130,246,0.05)_1px,transparent_0)] [background-size:20px_20px]"></div>
-        
+
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16 lg:mb-20">
             <div className="inline-flex items-center bg-brand/5 text-brand px-4 py-2 rounded-full text-sm font-medium mb-6">
@@ -165,7 +165,7 @@ export default function Home() {
         {/* Background decorations */}
         <div className="absolute top-0 left-0 w-72 h-72 bg-brand/5 rounded-full blur-3xl -translate-x-36 -translate-y-36"></div>
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl translate-x-48 translate-y-48"></div>
-        
+
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16 lg:mb-20">
             <div className="inline-flex items-center bg-brand/10 text-brand px-4 py-2 rounded-full text-sm font-medium mb-6">
@@ -200,7 +200,10 @@ export default function Home() {
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 mb-16">
                 {featuredProducts.map((product) => (
-                  <div key={product._id} className="transform hover:scale-105 transition-all duration-300">
+                  <div
+                    key={product._id}
+                    className="transform hover:scale-105 transition-all duration-300"
+                  >
                     <ProductCard product={product} />
                   </div>
                 ))}
@@ -225,25 +228,31 @@ export default function Home() {
         {/* Animated background elements */}
         <div className="absolute inset-0">
           <div className="absolute top-0 left-1/4 w-64 h-64 bg-white/5 rounded-full blur-3xl animate-pulse"></div>
-          <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-white/5 rounded-full blur-3xl animate-pulse" style={{animationDelay: '1s'}}></div>
-          <div className="absolute top-1/2 left-0 w-96 h-96 bg-white/3 rounded-full blur-3xl animate-pulse" style={{animationDelay: '2s'}}></div>
+          <div
+            className="absolute bottom-0 right-1/4 w-80 h-80 bg-white/5 rounded-full blur-3xl animate-pulse"
+            style={{ animationDelay: "1s" }}
+          ></div>
+          <div
+            className="absolute top-1/2 left-0 w-96 h-96 bg-white/3 rounded-full blur-3xl animate-pulse"
+            style={{ animationDelay: "2s" }}
+          ></div>
         </div>
-        
+
         <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="inline-flex items-center bg-white/10 backdrop-blur-sm text-white px-4 py-2 rounded-full text-sm font-medium mb-8 border border-white/20">
             <SparklesIcon className="w-4 h-4 mr-2" />
             Join Our Community
           </div>
-          
+
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-6 leading-tight">
             Ready to Get Started?
           </h2>
-          
+
           <p className="text-lg sm:text-xl lg:text-2xl text-blue-100 mb-12 max-w-3xl mx-auto leading-relaxed">
             Join thousands of satisfied customers who trust RentEasy for their
             equipment needs
           </p>
-          
+
           <div className="flex flex-col sm:flex-row gap-6 justify-center">
             <Link
               to="/register"
@@ -260,16 +269,24 @@ export default function Home() {
               <StarIcon className="w-5 h-5 ml-2 group-hover:rotate-12 transition-transform" />
             </Link>
           </div>
-          
+
           {/* Trust indicators */}
           <div className="mt-16 pt-12 border-t border-white/20">
-            <p className="text-blue-200 text-sm mb-6">Trusted by professionals worldwide</p>
+            <p className="text-blue-200 text-sm mb-6">
+              Trusted by professionals worldwide
+            </p>
             <div className="flex flex-wrap justify-center items-center gap-8 opacity-60">
-              <div className="text-white/70 text-sm font-medium">1000+ Happy Customers</div>
+              <div className="text-white/70 text-sm font-medium">
+                1000+ Happy Customers
+              </div>
               <div className="w-1 h-1 bg-white/50 rounded-full"></div>
-              <div className="text-white/70 text-sm font-medium">24/7 Support</div>
+              <div className="text-white/70 text-sm font-medium">
+                24/7 Support
+              </div>
               <div className="w-1 h-1 bg-white/50 rounded-full"></div>
-              <div className="text-white/70 text-sm font-medium">Secure Platform</div>
+              <div className="text-white/70 text-sm font-medium">
+                Secure Platform
+              </div>
             </div>
           </div>
         </div>
