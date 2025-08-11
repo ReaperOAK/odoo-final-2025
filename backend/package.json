@@ -4,10 +4,10 @@
   "description": "High-performance rental management system backend with comprehensive security and validation",
   "main": "src/server.js",
   "scripts": {
-    "start": "NODE_ENV=production node src/server.js",
-    "dev": "NODE_ENV=development nodemon src/server.js --watch src --ignore src/logs/",
+    "start": "set NODE_ENV=production && node src/server.js",
+    "dev": "set NODE_ENV=development && nodemon src/server.js --watch src --ignore src/logs/",
     "seed": "node scripts/seed.js",
-    "seed:dev": "NODE_ENV=development node scripts/seed.js",
+    "seed:dev": "set NODE_ENV=development && node scripts/seed.js",
     "test": "NODE_ENV=test jest",
     "test:watch": "NODE_ENV=test jest --watch",
     "test:coverage": "NODE_ENV=test jest --coverage",

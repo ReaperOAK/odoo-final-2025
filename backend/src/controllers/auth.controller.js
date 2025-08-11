@@ -410,5 +410,3 @@ module.exports = {
   changePassword,
   logout
 };
-
-module.exports = { register, login };

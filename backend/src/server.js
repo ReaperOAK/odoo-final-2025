@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const app = require('./app');
 const logger = require('./utils/logger');
-require('dotenv').config();
+require('dotenv').config({ path: '../../.env' });
 
 // Uncaught Exception Handler
 process.on('uncaughtException', (err) => {
@@ -23,7 +23,7 @@ process.on('unhandledRejection', (reason, promise) => {
 
 const PORT = process.env.PORT || 5000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/rental-system';
+const MONGODB_URI = process.env.MONGODB_URI;
 
 // Enhanced MongoDB connection configuration
 const mongooseOptions = {
@@ -35,7 +35,6 @@ const mongooseOptions = {
   socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
   
   // Buffering settings
-  bufferMaxEntries: 0, // Disable mongoose buffering
   bufferCommands: false, // Disable mongoose buffering
   
   // Auto index settings

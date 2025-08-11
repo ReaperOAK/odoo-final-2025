@@ -235,5 +235,3 @@ module.exports = {
   AppError,
   ERROR_TYPES
 };
-
-module.exports = errorMiddleware;
