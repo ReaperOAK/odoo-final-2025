@@ -3,24 +3,24 @@ import api from './api'
 export const rentalsAPI = {
   // Check availability - using POST as per documentation
   checkAvailability: async (productId, startDate, endDate, quantity = 1) => {
-    const response = await api.post('/rentals/check-availability', {
-      productId,
-      startTime: startDate,
-      endTime: endDate,
-      quantity
-    })
-    return response.data
-  },
+  const response = await api.post('/rentals/check-availability', {
+    productId,
+    startTime: new Date(startDate).toISOString(),
+    endTime: new Date(endDate).toISOString(),
+    quantity
+  });
+  console.log("Check Availability Response:", response.data);
+  return response.data;
+},
 
-  // Calculate price - using POST as per documentation
-  calculatePrice: async (productId, startDate, endDate) => {
-    const response = await api.post('/rentals/calculate-price', {
-      productId,
-      startTime: startDate,
-      endTime: endDate
-    })
-    return response.data
-  },
+calculatePrice: async (productId, startDate, endDate) => {
+  const response = await api.post('/rentals/calculate-price', {
+    productId,
+    startTime: new Date(startDate).toISOString(),
+    endTime: new Date(endDate).toISOString()
+  });
+  return response.data;
+},
 
   // Create rental/booking - using the /create endpoint as per documentation
   createRental: async (rentalData) => {

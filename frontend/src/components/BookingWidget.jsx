@@ -12,12 +12,12 @@ export default function BookingWidget({ product, onBook }) {
   const { user } = useAuth();
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [quantity, setQuantity] = useState(1); // NEW
   const [isAvailable, setIsAvailable] = useState(null);
   const [price, setPrice] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Debounced availability check
   useEffect(() => {
     if (startDate && endDate && product._id) {
       const timer = setTimeout(() => {
@@ -25,7 +25,7 @@ export default function BookingWidget({ product, onBook }) {
       }, 300);
       return () => clearTimeout(timer);
     }
-  }, [startDate, endDate, product._id]);
+  }, [startDate, endDate, product._id, quantity]);
 
   const checkAvailabilityAndPrice = async () => {
     try {
@@ -33,12 +33,12 @@ export default function BookingWidget({ product, onBook }) {
       setError("");
 
       const [availabilityRes, priceRes] = await Promise.all([
-        rentalsAPI.checkAvailability(product._id, startDate, endDate),
-        rentalsAPI.calculatePrice(product._id, startDate, endDate),
+        rentalsAPI.checkAvailability(product._id, startDate, endDate, quantity),
+        rentalsAPI.calculatePrice(product._id, startDate, endDate)
       ]);
 
-      setIsAvailable(availabilityRes.data.available);
-      setPrice(priceRes.data);
+      setIsAvailable(availabilityRes.data?.isAvailable);
+      setPrice(priceRes.data?.data);
     } catch (err) {
       setError("Failed to check availability");
       console.error(err);
@@ -49,20 +49,18 @@ export default function BookingWidget({ product, onBook }) {
 
   const handleBooking = () => {
     if (!user) {
-      // Redirect to login or show login modal
       window.location.href = "/login";
       return;
     }
-
     if (!isAvailable) {
       setError("Selected dates are not available");
       return;
     }
-
     onBook({
       productId: product._id,
       startDate,
       endDate,
+      quantity,
       totalPrice: price?.totalPrice,
     });
   };
@@ -88,6 +86,20 @@ export default function BookingWidget({ product, onBook }) {
         onEndDateChange={setEndDate}
         className="mb-6"
       />
+
+      {/* Quantity selector */}
+      <div className="mb-6">
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Number of items
+        </label>
+        <input
+          type="number"
+          min="1"
+          value={quantity}
+          onChange={(e) => setQuantity(parseInt(e.target.value, 10) || 1)}
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+        />
+      </div>
 
       {/* Availability Status */}
       {loading && startDate && endDate && (
@@ -141,7 +153,9 @@ export default function BookingWidget({ product, onBook }) {
                 ₹{price.breakdown?.dailyRate} × {price.breakdown?.days} day
                 {price.breakdown?.days > 1 ? "s" : ""}
               </span>
-              <span className="font-medium">₹{price.breakdown?.basePrice}</span>
+              <span className="font-medium">
+                ₹{price.breakdown?.basePrice}
+              </span>
             </div>
             {price.breakdown?.discounts > 0 && (
               <div className="flex justify-between text-green-600">

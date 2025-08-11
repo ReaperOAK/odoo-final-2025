@@ -40,6 +40,7 @@ export default function AdminProducts() {
     } catch (error) {
       console.error("Failed to delete product:", error);
       alert("Failed to delete product. Please try again.");
+      
     }
   };
 
