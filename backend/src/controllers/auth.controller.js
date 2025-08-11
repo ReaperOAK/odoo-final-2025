@@ -99,7 +99,7 @@ const register = asyncHandler(async (req, res, next) => {
 
   logger.info('User registration started', { 
     email, 
-    role: role || 'customer',
+    role: role || 'user',
     requestId 
   });
 
@@ -127,7 +127,7 @@ const register = asyncHandler(async (req, res, next) => {
     name: name.trim(),
     email: email.toLowerCase().trim(),
     password,
-    role: role || 'customer'
+    role: role || 'user'
   });
 
   await user.save();

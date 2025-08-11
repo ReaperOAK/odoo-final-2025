@@ -80,7 +80,6 @@ const createUsers = async () => {
         email: 'admin@demo.com',
         password: 'p@ssw0rd',
         role: 'admin',
-        isHost: false,
         isVerified: true,
         phone: '+91-9876543210',
         address: {
@@ -96,7 +95,6 @@ const createUsers = async () => {
         email: 'sarah.admin@demo.com',
         password: 'p@ssw0rd',
         role: 'admin',
-        isHost: false,
         isVerified: true,
         phone: '+91-9876543211',
         address: {
@@ -108,168 +106,150 @@ const createUsers = async () => {
         }
       },
 
-      // Demo host accounts
+      // P2P Users - Everyone can lend and borrow
       {
-        name: 'Raj Singh - Camera Host',
-        email: 'raj.host@demo.com',
+        name: 'Raj Singh',
+        email: 'raj@demo.com',
         password: 'p@ssw0rd',
-        role: 'host',
-        isHost: true,
-        isVerified: true,
-        phone: '+91-9876543212',
-        address: {
-          street: '789 Photography Street',
-          city: 'Bangalore',
-          state: 'Karnataka',
-          country: 'India',
-          zipCode: '560001'
-        },
-        hostProfile: {
+        role: 'user',
+        profile: {
           displayName: 'Raj\'s Camera Equipment',
-          businessName: 'Singh Photography Rentals',
-          govtIdNumber: 'AADHAR123456789',
-          gstNumber: 'GST123456789',
-          description: 'Professional photography equipment for rent. High-quality cameras, lenses, and accessories.',
+          phone: '+91-9876543212',
+          address: '789 Photography Street, Bangalore, Karnataka, India, 560001',
+          bio: 'Professional photography equipment for rent. High-quality cameras, lenses, and accessories.',
+          verified: true
+        },
+        lenderStats: {
           rating: 4.8,
-          totalEarnings: 85000,
-          completedOrders: 127
+          totalRatings: 27,
+          completedRentals: 127,
+          totalListings: 6,
+          activeListings: 4,
+          totalEarnings: 85000
         },
-        bankDetails: {
-          accountNumber: '1234567890',
-          ifscCode: 'HDFC0001234',
-          accountHolderName: 'Raj Singh',
-          bankName: 'HDFC Bank'
-        }
+        walletBalance: 5000
       },
       {
-        name: 'Priya Sharma - Events Host',
-        email: 'priya.host@demo.com',
+        name: 'Priya Sharma',
+        email: 'priya@demo.com',
         password: 'p@ssw0rd',
-        role: 'host',
-        isHost: true,
-        isVerified: true,
-        phone: '+91-9876543213',
-        address: {
-          street: '321 Events Plaza',
-          city: 'Pune',
-          state: 'Maharashtra',
-          country: 'India',
-          zipCode: '411001'
-        },
-        hostProfile: {
+        role: 'user',
+        profile: {
           displayName: 'Priya\'s Event Equipment',
-          businessName: 'Sharma Events & Rentals',
-          govtIdNumber: 'AADHAR987654321',
-          gstNumber: 'GST987654321',
-          description: 'Complete event equipment rental - sound systems, projectors, lighting, and party supplies.',
-          rating: 4.9,
-          totalEarnings: 120000,
-          completedOrders: 89
+          phone: '+91-9876543213',
+          address: '321 Events Plaza, Pune, Maharashtra, India, 411001',
+          bio: 'Complete event equipment rental - sound systems, projectors, lighting, and party supplies.',
+          verified: true
         },
-        bankDetails: {
-          accountNumber: '0987654321',
-          ifscCode: 'ICICI0001234',
-          accountHolderName: 'Priya Sharma',
-          bankName: 'ICICI Bank'
-        }
+        lenderStats: {
+          rating: 4.9,
+          totalRatings: 35,
+          completedRentals: 89,
+          totalListings: 8,
+          activeListings: 6,
+          totalEarnings: 120000
+        },
+        walletBalance: 7500
       },
       {
-        name: 'Arjun Patel - Sports Host',
-        email: 'arjun.host@demo.com',
+        name: 'Arjun Patel',
+        email: 'arjun@demo.com',
         password: 'p@ssw0rd',
-        role: 'host',
-        isHost: true,
-        isVerified: true,
-        phone: '+91-9876543214',
-        address: {
-          street: '654 Sports Complex',
-          city: 'Ahmedabad',
-          state: 'Gujarat',
-          country: 'India',
-          zipCode: '380001'
-        },
-        hostProfile: {
+        role: 'user',
+        profile: {
           displayName: 'Arjun\'s Sports Gear',
-          businessName: 'Patel Sports Rentals',
-          govtIdNumber: 'AADHAR456789123',
-          gstNumber: 'GST456789123',
-          description: 'Sports equipment for all outdoor activities - bikes, camping gear, sports equipment.',
-          rating: 4.7,
-          totalEarnings: 65000,
-          completedOrders: 156
+          phone: '+91-9876543214',
+          address: '654 Sports Complex, Ahmedabad, Gujarat, India, 380001',
+          bio: 'Sports equipment for all outdoor activities - bikes, camping gear, sports equipment.',
+          verified: true
         },
-        bankDetails: {
-          accountNumber: '5678901234',
-          ifscCode: 'SBI0001234',
-          accountHolderName: 'Arjun Patel',
-          bankName: 'State Bank of India'
-        }
+        lenderStats: {
+          rating: 4.7,
+          totalRatings: 22,
+          completedRentals: 156,
+          totalListings: 5,
+          activeListings: 3,
+          totalEarnings: 65000
+        },
+        walletBalance: 3200
       },
 
-      // Demo customer accounts
+      // Regular P2P users (can become lenders when they create listings)
       {
-        name: 'John Customer',
+        name: 'John Wilson',
         email: 'user@demo.com',
         password: 'p@ssw0rd',
-        role: 'customer',
-        isHost: false,
-        isVerified: true,
-        phone: '+91-9876543215',
-        address: {
-          street: '111 Customer Lane',
-          city: 'Chennai',
-          state: 'Tamil Nadu',
-          country: 'India',
-          zipCode: '600001'
-        }
+        role: 'user',
+        profile: {
+          phone: '+91-9876543215',
+          address: '111 Wilson Lane, Chennai, Tamil Nadu, India, 600001',
+          verified: true
+        },
+        borrowerStats: {
+          rating: 4.5,
+          totalRatings: 8,
+          completedRentals: 12,
+          trustScore: 95,
+          totalSpent: 15000
+        },
+        walletBalance: 1500
       },
       {
-        name: 'Emma Wilson',
+        name: 'Emma Johnson',
         email: 'emma@demo.com',
         password: 'p@ssw0rd',
-        role: 'customer',
-        isHost: false,
-        isVerified: true,
-        phone: '+91-9876543216',
-        address: {
-          street: '222 Wilson Street',
-          city: 'Hyderabad',
-          state: 'Telangana',
-          country: 'India',
-          zipCode: '500001'
-        }
+        role: 'user',
+        profile: {
+          phone: '+91-9876543216',
+          address: '222 Johnson Street, Hyderabad, Telangana, India, 500001',
+          verified: true
+        },
+        borrowerStats: {
+          rating: 4.6,
+          totalRatings: 5,
+          completedRentals: 7,
+          trustScore: 98,
+          totalSpent: 8500
+        },
+        walletBalance: 2000
       },
       {
-        name: 'Michael Johnson',
+        name: 'Michael Davis',
         email: 'michael@demo.com',
         password: 'p@ssw0rd',
-        role: 'customer',
-        isHost: false,
-        isVerified: true,
-        phone: '+91-9876543217',
-        address: {
-          street: '333 Johnson Avenue',
-          city: 'Kolkata',
-          state: 'West Bengal',
-          country: 'India',
-          zipCode: '700001'
-        }
+        role: 'user',
+        profile: {
+          phone: '+91-9876543217',
+          address: '333 Davis Avenue, Kolkata, West Bengal, India, 700001',
+          verified: true
+        },
+        borrowerStats: {
+          rating: 4.8,
+          totalRatings: 3,
+          completedRentals: 5,
+          trustScore: 100,
+          totalSpent: 12000
+        },
+        walletBalance: 800
       },
       {
-        name: 'Lisa Davis',
+        name: 'Lisa Kumar',
         email: 'lisa@demo.com',
         password: 'p@ssw0rd',
-        role: 'customer',
-        isHost: false,
-        isVerified: true,
-        phone: '+91-9876543218',
-        address: {
-          street: '444 Davis Road',
-          city: 'Jaipur',
-          state: 'Rajasthan',
-          country: 'India',
-          zipCode: '302001'
-        }
+        role: 'user',
+        profile: {
+          phone: '+91-9876543218',
+          address: '444 Kumar Road, Jaipur, Rajasthan, India, 302001',
+          verified: true
+        },
+        borrowerStats: {
+          rating: 4.7,
+          totalRatings: 6,
+          completedRentals: 9,
+          trustScore: 92,
+          totalSpent: 18500
+        },
+        walletBalance: 1200
       }
     ];
 
@@ -295,12 +275,23 @@ const createListings = async (users) => {
   try {
     log('🏪 Creating demo listings...', 'blue');
 
-    const hosts = users.filter(u => u.isHost);
+    // Get lender users (users with active lending stats)
+    const lenders = users.filter(u => u.lenderStats && u.lenderStats.totalListings > 0);
+    
+    log(`📊 Debug: Found ${lenders.length} lenders out of ${users.length} total users`, 'yellow');
+    if (lenders.length === 0) {
+      log('⚠️  No established lenders found, using users with lender stats for listings', 'yellow');
+      // Fallback to users who have lenderStats (even if they haven't created listings yet)
+      const usersWithLenderStats = users.filter(u => u.lenderStats);
+      if (usersWithLenderStats.length >= 3) {
+        lenders.push(...usersWithLenderStats.slice(0, 3));
+      }
+    }
 
     const listings = [
       // Raj's Camera Equipment
       {
-        ownerId: hosts[0]._id, // Raj Singh
+        ownerId: lenders[0]._id, // Raj Singh
         title: 'Canon EOS R5 Professional Camera Kit',
         description: 'Complete professional photography kit including Canon EOS R5 body, 24-70mm f/2.8L lens, 70-200mm f/2.8L lens, professional tripod, studio lighting kit, and camera bag. Perfect for weddings, events, and professional shoots.',
         category: 'photography',
@@ -340,7 +331,7 @@ const createListings = async (users) => {
         viewCount: 245
       },
       {
-        ownerId: hosts[0]._id, // Raj Singh
+        ownerId: lenders[0]._id, // Raj Singh
         title: 'Sony A7S III Video Camera Setup',
         description: 'Professional video production kit with Sony A7S III, Rode microphones, DJI Ronin gimbal, LED lighting panels, and 4K monitor. Ideal for video production, documentaries, and content creation.',
         category: 'photography',
@@ -379,7 +370,7 @@ const createListings = async (users) => {
 
       // Priya's Event Equipment
       {
-        ownerId: hosts[1]._id, // Priya Sharma
+        ownerId: lenders[1]._id, // Priya Sharma
         title: 'Professional Sound System - 1000W',
         description: 'High-quality sound system perfect for weddings, parties, and corporate events. Includes main speakers, subwoofer, mixer, wireless microphones, and all cables. Can accommodate up to 300 people.',
         category: 'music',
@@ -413,7 +404,7 @@ const createListings = async (users) => {
         viewCount: 356
       },
       {
-        ownerId: hosts[1]._id, // Priya Sharma
+        ownerId: lenders[1]._id, // Priya Sharma
         title: '4K Projector with 120" Screen',
         description: 'Professional 4K projector with 120-inch portable screen, perfect for presentations, movies, and events. Includes HDMI cables, wireless connectivity, and remote control.',
         category: 'electronics',
@@ -447,7 +438,7 @@ const createListings = async (users) => {
         viewCount: 278
       },
       {
-        ownerId: hosts[1]._id, // Priya Sharma
+        ownerId: lenders[1]._id, // Priya Sharma
         title: 'LED Stage Lighting Kit',
         description: 'Professional LED stage lighting setup with colorful spotlights, moving heads, strobe lights, and DMX controller. Perfect for parties, concerts, and special events.',
         category: 'electronics',
@@ -483,7 +474,7 @@ const createListings = async (users) => {
 
       // Arjun's Sports Equipment
       {
-        ownerId: hosts[2]._id, // Arjun Patel
+        ownerId: lenders[2]._id, // Arjun Patel
         title: 'Trek Mountain Bike - Full Suspension',
         description: 'High-end Trek mountain bike with full suspension, perfect for trails and adventure sports. Includes safety gear (helmet, knee pads), bike lock, and maintenance kit.',
         category: 'sports',
@@ -518,7 +509,7 @@ const createListings = async (users) => {
         viewCount: 445
       },
       {
-        ownerId: hosts[2]._id, // Arjun Patel
+        ownerId: lenders[2]._id, // Arjun Patel
         title: 'Complete Camping Gear Set',
         description: 'Everything you need for camping: 4-person tent, sleeping bags, portable stove, camping chairs, lanterns, cooler, and outdoor cooking utensils. Perfect for weekend getaways.',
         category: 'outdoor',
@@ -552,7 +543,7 @@ const createListings = async (users) => {
         viewCount: 523
       },
       {
-        ownerId: hosts[2]._id, // Arjun Patel
+        ownerId: lenders[2]._id, // Arjun Patel
         title: 'Power Tools Professional Set',
         description: 'Complete power tools collection including cordless drill, circular saw, angle grinder, impact driver, and tool bag. Perfect for DIY projects and professional work.',
         category: 'tools',
@@ -605,14 +596,14 @@ const createOrdersAndReservations = async (users, listings) => {
   try {
     log('📋 Creating demo orders and reservations...', 'blue');
 
-    // Safely filter customers and hosts
-    const customers = users.filter(u => u.role === 'customer' && !u.isHost);
-    const hosts = users.filter(u => u.isHost === true);
+    // Safely filter borrowers and lenders
+    const borrowers = users.filter(u => u.role === 'user' && u.borrowerStats);
+    const lenders = users.filter(u => u.lenderStats);
 
-    log(`📊 Found ${customers.length} customers and ${hosts.length} hosts`, 'blue');
+    log(`📊 Found ${borrowers.length} borrowers and ${lenders.length} lenders`, 'blue');
 
-    if (customers.length === 0 || hosts.length === 0) {
-      log('⚠️  Warning: Insufficient customers or hosts found, creating minimal demo data', 'yellow');
+    if (borrowers.length === 0 || lenders.length === 0) {
+      log('⚠️  Warning: Insufficient borrowers or lenders found, creating minimal demo data', 'yellow');
       return { orders: [], reservations: [], payments: [] };
     }
     const now = new Date();
@@ -625,8 +616,8 @@ const createOrdersAndReservations = async (users, listings) => {
     const orderScenarios = [
       // Future confirmed bookings
       {
-        customerId: customers[0]._id,
-        hostId: hosts[0]._id,
+        customerId: borrowers[0]._id,
+        lenderId: lenders[0]._id,
         listingId: listings[0]._id, // Canon Camera Kit
         quantity: 1,
         startDate: new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000), // 2 days from now
@@ -635,8 +626,8 @@ const createOrdersAndReservations = async (users, listings) => {
         paymentStatus: 'completed'
       },
       {
-        customerId: customers[1] ? customers[1]._id : customers[0]._id,
-        hostId: hosts[1] ? hosts[1]._id : hosts[0]._id,
+        customerId: borrowers[1] ? borrowers[1]._id : borrowers[0]._id,
+        lenderId: lenders[1] ? lenders[1]._id : lenders[0]._id,
         listingId: listings[2] ? listings[2]._id : listings[0]._id, // Sound System
         quantity: 1,
         startDate: new Date(now.getTime() + 1 * 24 * 60 * 60 * 1000), // 1 day from now
@@ -647,8 +638,8 @@ const createOrdersAndReservations = async (users, listings) => {
 
       // Currently active rentals (using future dates but marking as in_progress)
       {
-        customerId: customers[2] ? customers[2]._id : customers[0]._id,
-        hostId: hosts[2] ? hosts[2]._id : hosts[0]._id,
+        customerId: borrowers[2] ? borrowers[2]._id : borrowers[0]._id,
+        lenderId: lenders[2] ? lenders[2]._id : lenders[0]._id,
         listingId: listings[5] ? listings[5]._id : listings[0]._id, // Mountain Bike
         quantity: 2,
         startDate: new Date(now.getTime() + 12 * 24 * 60 * 60 * 1000), // 12 days from now
@@ -657,8 +648,8 @@ const createOrdersAndReservations = async (users, listings) => {
         paymentStatus: 'completed'
       },
       {
-        customerId: customers[3] ? customers[3]._id : customers[0]._id,
-        hostId: hosts[1] ? hosts[1]._id : hosts[0]._id,
+        customerId: borrowers[3] ? borrowers[3]._id : borrowers[0]._id,
+        lenderId: lenders[1] ? lenders[1]._id : lenders[0]._id,
         listingId: listings[3] ? listings[3]._id : listings[0]._id, // 4K Projector
         quantity: 1,
         startDate: new Date(now.getTime() + 11 * 24 * 60 * 60 * 1000), // 11 days from now
@@ -669,8 +660,8 @@ const createOrdersAndReservations = async (users, listings) => {
 
       // Completed orders (using recent past dates as examples, will be marked completed)
       {
-        customerId: customers[0]._id,
-        hostId: hosts[2] ? hosts[2]._id : hosts[0]._id,
+        customerId: borrowers[0]._id,
+        lenderId: lenders[2] ? lenders[2]._id : lenders[0]._id,
         listingId: listings[6] ? listings[6]._id : listings[0]._id, // Camping Gear
         quantity: 1,
         startDate: new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000), // 15 days from now
@@ -679,8 +670,8 @@ const createOrdersAndReservations = async (users, listings) => {
         paymentStatus: 'completed'
       },
       {
-        customerId: customers[1] ? customers[1]._id : customers[0]._id,
-        hostId: hosts[1] ? hosts[1]._id : hosts[0]._id,
+        customerId: borrowers[1] ? borrowers[1]._id : borrowers[0]._id,
+        lenderId: lenders[1] ? lenders[1]._id : lenders[0]._id,
         listingId: listings[4] ? listings[4]._id : listings[0]._id, // LED Lighting
         quantity: 1,
         startDate: new Date(now.getTime() + 20 * 24 * 60 * 60 * 1000), // 20 days from now
@@ -691,8 +682,8 @@ const createOrdersAndReservations = async (users, listings) => {
 
       // Pending payment orders
       {
-        customerId: customers[2] ? customers[2]._id : customers[0]._id,
-        hostId: hosts[0]._id,
+        customerId: borrowers[2] ? borrowers[2]._id : borrowers[0]._id,
+        lenderId: lenders[0]._id,
         listingId: listings[1] ? listings[1]._id : listings[0]._id, // Sony Video Kit
         quantity: 1,
         startDate: new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
@@ -703,8 +694,8 @@ const createOrdersAndReservations = async (users, listings) => {
 
       // Cancelled orders
       {
-        customerId: customers[3] ? customers[3]._id : customers[0]._id,
-        hostId: hosts[2] ? hosts[2]._id : hosts[0]._id,
+        customerId: borrowers[3] ? borrowers[3]._id : borrowers[0]._id,
+        lenderId: lenders[2] ? lenders[2]._id : lenders[0]._id,
         listingId: listings[7] ? listings[7]._id : listings[0]._id, // Power Tools
         quantity: 1,
         startDate: new Date(now.getTime() + 8 * 24 * 60 * 60 * 1000), // 8 days from now
@@ -719,10 +710,10 @@ const createOrdersAndReservations = async (users, listings) => {
       try {
         const listing = listings.find(l => l._id.equals(scenario.listingId));
         const customer = users.find(u => u._id.equals(scenario.customerId));
-        const host = users.find(u => u._id.equals(scenario.hostId));
+        const lender = users.find(u => u._id.equals(scenario.lenderId));
 
-        if (!listing || !customer || !host) {
-          log(`⚠️  Warning: Skipping order - missing data (listing: ${!!listing}, customer: ${!!customer}, host: ${!!host})`, 'yellow');
+        if (!listing || !customer || !lender) {
+          log(`⚠️  Warning: Skipping order - missing data (listing: ${!!listing}, customer: ${!!customer}, lender: ${!!lender})`, 'yellow');
           continue;
         }
 
@@ -734,13 +725,13 @@ const createOrdersAndReservations = async (users, listings) => {
           ? Math.round(baseAmount * listing.depositValue / 100)
           : listing.depositValue;
         const totalAmount = baseAmount + platformFee;
-        const hostEarnings = baseAmount - Math.round(baseAmount * 0.05); // Host gets 95%
+        const lenderEarnings = baseAmount - Math.round(baseAmount * 0.05); // Lender gets 95%
 
         // Create order
         const order = {
           orderNumber: `ORD-${Date.now()}-${Math.random().toString(36).substring(7).toUpperCase()}`,
           customerId: scenario.customerId,
-          hostId: scenario.hostId,
+          lenderId: scenario.lenderId,
           lineItems: [{
             listingId: scenario.listingId,
             quantity: scenario.quantity,
@@ -757,7 +748,7 @@ const createOrdersAndReservations = async (users, listings) => {
             platformFee: platformFee,
             totalAmount: totalAmount,
             platformCommission: Math.round(baseAmount * 0.05),
-            hostEarnings: hostEarnings
+            lenderEarnings: lenderEarnings
           },
           status: scenario.status,
           payment: {
@@ -768,14 +759,20 @@ const createOrdersAndReservations = async (users, listings) => {
           customer: {
             name: customer.name,
             email: customer.email,
-            phone: customer.phone,
-            address: customer.address
+            phone: customer.profile?.phone || '',
+            address: {
+              street: '123 Demo Street',
+              city: 'Demo City', 
+              state: 'Demo State',
+              pincode: '123456',
+              country: 'India'
+            }
           },
-          host: {
-            name: host.name,
-            email: host.email,
-            phone: host.phone,
-            businessName: host.hostProfile?.businessName || host.name
+          lender: {
+            name: lender.name,
+            email: lender.email,
+            phone: lender.profile?.phone || '',
+            businessName: lender.profile?.displayName || lender.name
           },
           timeline: {
             createdAt: new Date(scenario.startDate.getTime() - 3 * 24 * 60 * 60 * 1000)
@@ -788,7 +785,7 @@ const createOrdersAndReservations = async (users, listings) => {
         const reservation = {
           listingId: scenario.listingId,
           customerId: scenario.customerId,
-          hostId: scenario.hostId,
+          hostId: scenario.lenderId, // Map lenderId to hostId for backward compatibility
           quantity: scenario.quantity,
           startDate: scenario.startDate,
           endDate: scenario.endDate,
@@ -802,7 +799,7 @@ const createOrdersAndReservations = async (users, listings) => {
             subtotal: baseAmount,
             depositAmount: depositAmount,
             totalAmount: baseAmount,
-            hostEarnings: hostEarnings
+            hostEarnings: lenderEarnings // Map lenderEarnings to hostEarnings for backward compatibility
           },
           timeline: {
             reservedAt: new Date(scenario.startDate.getTime() - 3 * 24 * 60 * 60 * 1000),
@@ -816,7 +813,7 @@ const createOrdersAndReservations = async (users, listings) => {
         if (scenario.paymentStatus === 'completed' || scenario.paymentStatus === 'refunded') {
           const payment = {
             customerId: customer._id,
-            hostId: host._id,
+            hostId: lender._id, // Map lender to host for backward compatibility
             amount: totalAmount,
             currency: 'INR',
             method: 'razorpay',
@@ -824,7 +821,7 @@ const createOrdersAndReservations = async (users, listings) => {
             customer: {
               name: customer.name,
               email: customer.email,
-              phone: customer.phoneNumber
+              phone: customer.profile?.phone || ''
             },
             security: {
               ipAddress: '192.168.1.100',
@@ -890,44 +887,44 @@ const createOrdersAndReservations = async (users, listings) => {
 };
 
 /**
- * Create demo payouts for hosts
+ * Create demo payouts for lenders
  */
 const createPayouts = async (users, orders) => {
   try {
     log('💰 Creating demo payouts...', 'blue');
 
-    const hosts = users.filter(u => u.isHost);
+    const lenders = users.filter(u => u.lenderStats);
     const payouts = [];
 
-    for (const host of hosts) {
+    for (const lender of lenders) {
       try {
-        // Calculate completed orders for this host
-        const hostOrders = orders.filter(o =>
-          o.hostId.equals(host._id) && o.status === 'completed'
+        // Calculate completed orders for this lender
+        const lenderOrders = orders.filter(o =>
+          o.lenderId.equals(lender._id) && o.status === 'completed'
         );
 
-        if (hostOrders.length > 0) {
-          const totalEarnings = hostOrders.reduce((sum, order) =>
+        if (lenderOrders.length > 0) {
+          const totalEarnings = lenderOrders.reduce((sum, order) =>
             sum + (order.pricing.subtotal - Math.round(order.pricing.subtotal * 0.05)), 0
           ); // Subtract 5% platform commission
 
           const payout = {
-            hostId: host._id,
+            hostId: lender._id, // Map lender to host for backward compatibility
             amount: totalEarnings,
             status: Math.random() > 0.5 ? 'completed' : 'pending', // Random status for demo
             method: 'bank_transfer',
-            host: {
-              name: host.name,
-              email: host.email,
-              phone: host.phoneNumber
+            host: { // Map lender details to host for backward compatibility
+              name: lender.name,
+              email: lender.email,
+              phone: lender.profile?.phone || ''
             },
             breakdown: {
-              grossAmount: hostOrders.reduce((sum, order) => sum + order.pricing.subtotal, 0),
-              platformCommission: hostOrders.reduce((sum, order) => sum + Math.round(order.pricing.subtotal * 0.05), 0),
+              grossAmount: lenderOrders.reduce((sum, order) => sum + order.pricing.subtotal, 0),
+              platformCommission: lenderOrders.reduce((sum, order) => sum + Math.round(order.pricing.subtotal * 0.05), 0),
               processingFee: 10, // Fixed processing fee
               netAmount: totalEarnings
             },
-            sourceOrders: hostOrders.map(o => ({
+            sourceOrders: lenderOrders.map(o => ({
               orderId: o._id,
               orderNumber: `ORD-${Math.random().toString(36).substring(7).toUpperCase()}`,
               earnings: o.pricing.subtotal - Math.round(o.pricing.subtotal * 0.05),
@@ -935,7 +932,7 @@ const createPayouts = async (users, orders) => {
             })),
             bankDetails: {
               accountNumber: `****${Math.random().toString().substring(2, 6)}`,
-              accountHolderName: host.name,
+              accountHolderName: lender.name,
               bankName: 'State Bank of India',
               ifscCode: 'SBIN0001234',
               branchName: 'Main Branch',
@@ -948,7 +945,7 @@ const createPayouts = async (users, orders) => {
           payouts.push(payout);
         }
       } catch (error) {
-        log(`⚠️  Warning: Skipping payout for host ${host.name}: ${error.message}`, 'yellow');
+        log(`⚠️  Warning: Skipping payout for lender ${lender.name}: ${error.message}`, 'yellow');
         continue;
       }
     }
@@ -971,13 +968,13 @@ const displaySummary = async (users, listings, orders, reservations, payments, p
   log('===================================', 'cyan');
 
   const adminUsers = users.filter(u => u.role === 'admin');
-  const hostUsers = users.filter(u => u.isHost);
-  const customerUsers = users.filter(u => u.role === 'customer' && !u.isHost);
+  const lenderUsers = users.filter(u => u.lenderStats);
+  const borrowerUsers = users.filter(u => u.borrowerStats);
 
   log(`👥 Users: ${users.length} total`, 'blue');
   log(`   - Admins: ${adminUsers.length}`, 'blue');
-  log(`   - Hosts: ${hostUsers.length}`, 'blue');
-  log(`   - Customers: ${customerUsers.length}`, 'blue');
+  log(`   - Lenders: ${lenderUsers.length}`, 'blue');
+  log(`   - Borrowers: ${borrowerUsers.length}`, 'blue');
 
   log(`\n🏪 Listings: ${listings.length} total`, 'blue');
   const categoryCount = listings.reduce((acc, l) => {
@@ -1017,32 +1014,32 @@ const displaySummary = async (users, listings, orders, reservations, payments, p
   log('  Email: admin@demo.com', 'green');
   log('  Password: p@ssw0rd', 'green');
 
-  log('\nHost Accounts:', 'green');
-  log('  Email: raj.host@demo.com (Camera Equipment)', 'green');
-  log('  Email: priya.host@demo.com (Event Equipment)', 'green');
-  log('  Email: arjun.host@demo.com (Sports Equipment)', 'green');
+  log('\nLender Accounts:', 'green');
+  log('  Email: raj@demo.com (Camera Equipment)', 'green');
+  log('  Email: priya@demo.com (Event Equipment)', 'green');
+  log('  Email: arjun@demo.com (Sports Equipment)', 'green');
   log('  Password: p@ssw0rd', 'green');
 
-  log('\nCustomer Account:', 'green');
+  log('\nBorrower Account:', 'green');
   log('  Email: user@demo.com', 'green');
   log('  Password: p@ssw0rd', 'green');
 
   log('\n🚀 P2P MARKETPLACE FEATURES', 'cyan');
   log('==============================', 'cyan');
-  log('✅ Multi-host listings across categories', 'yellow');
-  log('✅ Host onboarding with verification', 'yellow');
+  log('✅ Peer-to-peer lending for all users', 'yellow');
+  log('✅ User onboarding with verification', 'yellow');
   log('✅ Atomic reservation system with conflicts prevention', 'yellow');
   log('✅ Payment processing with Razorpay integration', 'yellow');
-  log('✅ Host earnings and payout management', 'yellow');
+  log('✅ Lender earnings and payout management', 'yellow');
   log('✅ Order lifecycle: pending → confirmed → active → completed', 'yellow');
   log('✅ Admin dashboard with platform analytics', 'yellow');
-  log('✅ Host dashboard with earnings tracking', 'yellow');
+  log('✅ Lender dashboard with earnings tracking', 'yellow');
 
   log('\n🧪 TESTING SCENARIOS', 'cyan');
   log('=====================', 'cyan');
   log('🎯 Try booking Canon Camera Kit (conflicts with existing bookings)', 'yellow');
-  log('🎯 Test host dashboard analytics and earnings', 'yellow');
-  log('🎯 Create new listings as a host', 'yellow');
+  log('🎯 Test lender dashboard analytics and earnings', 'yellow');
+  log('🎯 Create new listings as any user', 'yellow');
   log('🎯 Process payouts as admin', 'yellow');
   log('🎯 Test payment flow with mock Razorpay', 'yellow');
   log('🎯 Check availability across different dates', 'yellow');
