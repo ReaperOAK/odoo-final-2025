@@ -25,10 +25,10 @@ class ListingController {
           errors: errors.array()
         });
       }
-      
+
       const userId = req.user.id;
       const user = await User.findById(userId);
-      
+
       // Check if user can lend items (basic requirements)
       if (!user.canLendItems()) {
         return res.status(403).json({
@@ -39,19 +39,19 @@ class ListingController {
           }
         });
       }
-      
+
       const listingData = {
         ...req.body,
         ownerId: userId
       };
-      
+
       // Process images if provided
       if (req.body.images && Array.isArray(req.body.images)) {
-        listingData.images = req.body.images.filter(img => 
+        listingData.images = req.body.images.filter(img =>
           /^https?:\/\/.+\.(jpg|jpeg|png|webp|gif)$/i.test(img)
         );
       }
-      
+
       // Set default location if not provided
       if (!listingData.location) {
         listingData.location = {
@@ -60,34 +60,34 @@ class ListingController {
           country: 'India'
         };
       }
-      
+
       // Create listing
       const listing = new Listing(listingData);
       await listing.save();
-      
+
       // Populate owner details
       await listing.populate('ownerId', 'name email profile');
-      
+
       logger.info('Listing created successfully', {
         listingId: listing._id,
         ownerId: userId,
         title: listing.title,
         category: listing.category
       });
-      
+
       res.status(201).json({
         success: true,
         message: 'Listing created successfully',
         data: listing
       });
-      
+
     } catch (error) {
       logger.error('Create listing failed', {
         error: error.message,
         userId: req.user?.id,
         body: JSON.stringify(req.body)
       });
-      
+
       res.status(500).json({
         success: false,
         message: 'Failed to create listing',
@@ -95,7 +95,7 @@ class ListingController {
       });
     }
   }
-  
+
   /**
    * Get all listings with filters and pagination
    */
@@ -116,32 +116,32 @@ class ListingController {
         lenderId,
         status = 'published'
       } = req.query;
-      
+
       const skip = (page - 1) * limit;
       const query = {
         status: status === 'all' ? { $ne: 'draft' } : status,
         isActive: true
       };
-      
+
       // Apply filters
       if (category && category !== 'all') {
         query.category = category;
       }
-      
+
       if (city) {
         query['location.city'] = new RegExp(city, 'i');
       }
-      
+
       if (minPrice || maxPrice) {
         query.basePrice = {};
         if (minPrice) query.basePrice.$gte = parseFloat(minPrice);
         if (maxPrice) query.basePrice.$lte = parseFloat(maxPrice);
       }
-      
+
       if (lenderId) {
         query.ownerId = mongoose.Types.ObjectId(lenderId);
       }
-      
+
       // Handle search
       if (search) {
         query.$or = [
@@ -151,13 +151,13 @@ class ListingController {
           { category: new RegExp(search, 'i') }
         ];
       }
-      
+
       // Check availability if dates provided
       if (startDate && endDate) {
         const availableListingIds = await this.getAvailableListings(
           startDate, endDate, parseInt(quantity)
         );
-        
+
         if (availableListingIds.length > 0) {
           query._id = { $in: availableListingIds };
         } else {
@@ -178,7 +178,7 @@ class ListingController {
           });
         }
       }
-      
+
       // Build sort criteria
       let sortCriteria = {};
       switch (sortBy) {
@@ -198,14 +198,14 @@ class ListingController {
           sortCriteria = { bookingCount: -1, 'ratings.average': -1 };
           break;
         default: // relevance
-          sortCriteria = { 
-            isPromoted: -1, 
-            'ratings.average': -1, 
+          sortCriteria = {
+            isPromoted: -1,
+            'ratings.average': -1,
             bookingCount: -1,
-            createdAt: -1 
+            createdAt: -1
           };
       }
-      
+
       // Execute query with aggregation for better performance
       const aggregationPipeline = [
         { $match: query },
@@ -255,12 +255,12 @@ class ListingController {
           }
         }
       ];
-      
+
       const [result] = await Listing.aggregate(aggregationPipeline);
       const listings = result.listings;
       const totalListings = result.totalCount[0]?.count || 0;
       const totalPages = Math.ceil(totalListings / limit);
-      
+
       // Add pricing information if dates provided
       if (startDate && endDate && listings.length > 0) {
         for (const listing of listings) {
@@ -281,7 +281,7 @@ class ListingController {
           }
         }
       }
-      
+
       res.json({
         success: true,
         data: {
@@ -307,13 +307,13 @@ class ListingController {
           }
         }
       });
-      
+
     } catch (error) {
       logger.error('Get listings failed', {
         error: error.message,
         query: JSON.stringify(req.query)
       });
-      
+
       res.status(500).json({
         success: false,
         message: 'Failed to fetch listings',
@@ -321,14 +321,14 @@ class ListingController {
       });
     }
   }
-  
+
   /**
    * Get single listing by ID
    */
   static async getListingById(req, res) {
     try {
       const { id } = req.params;
-      
+
       if (!mongoose.Types.ObjectId.isValid(id)) {
         return res.status(400).json({
           success: false,
@@ -337,10 +337,10 @@ class ListingController {
       }
 
       console.log('Fetching listing with ID:', id); // Debug log
-      
+
       const listing = await Listing.findById(id)
         .populate('ownerId', 'name email profile lenderStats createdAt');
-      
+
       if (!listing) {
         return res.status(404).json({
           success: false,
@@ -349,6 +349,8 @@ class ListingController {
       }
 
       console.log('Listing found, preparing response...'); // Debug log
+      console.log('Listing basePrice:', listing.basePrice); // Debug pricing
+      console.log('Listing object keys:', Object.keys(listing.toObject ? listing.toObject() : listing)); // Debug structure
 
       // Simplified availability check - just use listing's total quantity for now
       let availability = null;
@@ -371,13 +373,13 @@ class ListingController {
 
       // Basic pricing info
       const pricing = {
-        basePrice: listing.pricing?.basePrice || 0,
-        currency: listing.pricing?.currency || 'INR',
-        deposit: listing.pricing?.deposit || 0,
+        basePrice: listing.basePrice || 0,
+        currency: 'INR',
+        deposit: listing.depositValue || 0,
         minimumRentalDays: listing.minimumRentalDays || 1,
         maximumRentalDays: listing.maximumRentalDays || 30
       };
-      
+
       res.json({
         success: true,
         data: {
@@ -403,9 +405,9 @@ class ListingController {
       });
     }
   }
-          
-  
-  
+
+
+
   /**
    * Update listing (owner only)
    */
@@ -419,26 +421,26 @@ class ListingController {
           errors: errors.array()
         });
       }
-      
+
       const { id } = req.params;
       const userId = req.user.id;
-      
+
       if (!mongoose.Types.ObjectId.isValid(id)) {
         return res.status(400).json({
           success: false,
           message: 'Invalid listing ID'
         });
       }
-      
+
       const listing = await Listing.findById(id);
-      
+
       if (!listing) {
         return res.status(404).json({
           success: false,
           message: 'Listing not found'
         });
       }
-      
+
       // Check ownership
       if (listing.ownerId.toString() !== userId && req.user.role !== 'admin') {
         return res.status(403).json({
@@ -446,44 +448,44 @@ class ListingController {
           message: 'Not authorized to update this listing'
         });
       }
-      
+
       // Update fields
       const updateData = { ...req.body };
       delete updateData.ownerId; // Prevent ownership change
       delete updateData.bookingCount; // Prevent manipulation
       delete updateData.ratings; // Prevent rating manipulation
-      
+
       // Process images if provided
       if (updateData.images && Array.isArray(updateData.images)) {
-        updateData.images = updateData.images.filter(img => 
+        updateData.images = updateData.images.filter(img =>
           /^https?:\/\/.+\.(jpg|jpeg|png|webp|gif)$/i.test(img)
         );
       }
-      
+
       Object.assign(listing, updateData);
       await listing.save();
-      
+
       await listing.populate('ownerId', 'name email profile');
-      
+
       logger.info('Listing updated successfully', {
         listingId: id,
         ownerId: userId,
         updatedFields: Object.keys(updateData)
       });
-      
+
       res.json({
         success: true,
         message: 'Listing updated successfully',
         data: listing
       });
-      
+
     } catch (error) {
       logger.error('Update listing failed', {
         error: error.message,
         listingId: req.params.id,
         userId: req.user?.id
       });
-      
+
       res.status(500).json({
         success: false,
         message: 'Failed to update listing',
@@ -491,7 +493,7 @@ class ListingController {
       });
     }
   }
-  
+
   /**
    * Delete listing (owner only)
    */
@@ -499,23 +501,23 @@ class ListingController {
     try {
       const { id } = req.params;
       const userId = req.user.id;
-      
+
       if (!mongoose.Types.ObjectId.isValid(id)) {
         return res.status(400).json({
           success: false,
           message: 'Invalid listing ID'
         });
       }
-      
+
       const listing = await Listing.findById(id);
-      
+
       if (!listing) {
         return res.status(404).json({
           success: false,
           message: 'Listing not found'
         });
       }
-      
+
       // Check ownership
       if (listing.ownerId.toString() !== userId && req.user.role !== 'admin') {
         return res.status(403).json({
@@ -523,42 +525,42 @@ class ListingController {
           message: 'Not authorized to delete this listing'
         });
       }
-      
+
       // Check for active reservations
       const activeReservations = await Reservation.countDocuments({
         listingId: id,
         status: { $in: ['confirmed', 'picked_up', 'in_progress'] }
       });
-      
+
       if (activeReservations > 0) {
         return res.status(400).json({
           success: false,
           message: 'Cannot delete listing with active reservations'
         });
       }
-      
+
       // Soft delete - set status to disabled
       listing.status = 'disabled';
       listing.isActive = false;
       await listing.save();
-      
+
       logger.info('Listing deleted successfully', {
         listingId: id,
         ownerId: userId
       });
-      
+
       res.json({
         success: true,
         message: 'Listing deleted successfully'
       });
-      
+
     } catch (error) {
       logger.error('Delete listing failed', {
         error: error.message,
         listingId: req.params.id,
         userId: req.user?.id
       });
-      
+
       res.status(500).json({
         success: false,
         message: 'Failed to delete listing',
@@ -566,7 +568,7 @@ class ListingController {
       });
     }
   }
-  
+
   /**
    * Check availability for a listing
    */
@@ -574,42 +576,42 @@ class ListingController {
     try {
       const { id } = req.params;
       const { startDate, endDate, quantity = 1 } = req.query;
-      
+
       if (!startDate || !endDate) {
         return res.status(400).json({
           success: false,
           message: 'Start date and end date are required'
         });
       }
-      
+
       if (!mongoose.Types.ObjectId.isValid(id)) {
         return res.status(400).json({
           success: false,
           message: 'Invalid listing ID'
         });
       }
-      
+
       const start = new Date(startDate);
       const end = new Date(endDate);
-      
+
       if (start >= end) {
         return res.status(400).json({
           success: false,
           message: 'End date must be after start date'
         });
       }
-      
+
       if (start < new Date()) {
         return res.status(400).json({
           success: false,
           message: 'Start date cannot be in the past'
         });
       }
-      
+
       const availability = await ReservationService.checkAtomicAvailability(
         id, start, end, parseInt(quantity)
       );
-      
+
       // Get conflicting reservations for more details
       let conflicts = [];
       if (!availability.available) {
@@ -617,7 +619,7 @@ class ListingController {
           id, start, end
         );
       }
-      
+
       res.json({
         success: true,
         data: {
@@ -631,14 +633,14 @@ class ListingController {
           }))
         }
       });
-      
+
     } catch (error) {
       logger.error('Availability check failed', {
         error: error.message,
         listingId: req.params.id,
         query: JSON.stringify(req.query)
       });
-      
+
       res.status(500).json({
         success: false,
         message: 'Failed to check availability',
@@ -646,7 +648,7 @@ class ListingController {
       });
     }
   }
-  
+
   /**
    * Calculate pricing for a listing
    */
@@ -654,21 +656,21 @@ class ListingController {
     try {
       const { id } = req.params;
       const { startDate, endDate, quantity = 1, paymentType = 'deposit' } = req.query;
-      
+
       if (!startDate || !endDate) {
         return res.status(400).json({
           success: false,
           message: 'Start date and end date are required'
         });
       }
-      
+
       if (!mongoose.Types.ObjectId.isValid(id)) {
         return res.status(400).json({
           success: false,
           message: 'Invalid listing ID'
         });
       }
-      
+
       const pricing = await PricingService.calculateRentalPrice(
         id,
         startDate,
@@ -680,19 +682,19 @@ class ListingController {
           completedBookings: req.user?.completedBookings || 0
         }
       );
-      
+
       res.json({
         success: true,
         data: pricing
       });
-      
+
     } catch (error) {
       logger.error('Pricing calculation failed', {
         error: error.message,
         listingId: req.params.id,
         query: JSON.stringify(req.query)
       });
-      
+
       res.status(500).json({
         success: false,
         message: 'Failed to calculate pricing',
@@ -700,7 +702,7 @@ class ListingController {
       });
     }
   }
-  
+
   /**
    * Get user's listings (items they're lending)
    */
@@ -708,21 +710,21 @@ class ListingController {
     try {
       const userId = req.user.id;
       const { page = 1, limit = 10, status, search } = req.query;
-      
+
       const skip = (page - 1) * limit;
       const query = { ownerId: mongoose.Types.ObjectId(userId) };
-      
+
       if (status && status !== 'all') {
         query.status = status;
       }
-      
+
       if (search) {
         query.$or = [
           { title: new RegExp(search, 'i') },
           { description: new RegExp(search, 'i') }
         ];
       }
-      
+
       const [listings, totalCount] = await Promise.all([
         Listing.find(query)
           .sort({ createdAt: -1 })
@@ -731,7 +733,7 @@ class ListingController {
           .lean(),
         Listing.countDocuments(query)
       ]);
-      
+
       // Add analytics for each listing
       for (const listing of listings) {
         const analytics = await ReservationService.getReservationAnalytics(
@@ -740,9 +742,9 @@ class ListingController {
         );
         listing.analytics = analytics;
       }
-      
+
       const totalPages = Math.ceil(totalCount / limit);
-      
+
       res.json({
         success: true,
         data: {
@@ -756,13 +758,13 @@ class ListingController {
           }
         }
       });
-      
+
     } catch (error) {
       logger.error('Get user listings failed', {
         error: error.message,
         userId: req.user?.id
       });
-      
+
       res.status(500).json({
         success: false,
         message: 'Failed to fetch user listings',
@@ -770,7 +772,7 @@ class ListingController {
       });
     }
   }
-  
+
   /**
    * Get listing categories with counts
    */
@@ -796,15 +798,15 @@ class ListingController {
           $sort: { count: -1 }
         }
       ]);
-      
+
       res.json({
         success: true,
         data: categories
       });
-      
+
     } catch (error) {
       logger.error('Get categories failed', { error: error.message });
-      
+
       res.status(500).json({
         success: false,
         message: 'Failed to fetch categories',
@@ -812,7 +814,7 @@ class ListingController {
       });
     }
   }
-  
+
   /**
    * Helper method to get available listings for date range
    */
@@ -851,30 +853,30 @@ class ListingController {
           }
         }
       ]);
-      
+
       const reservedMap = {};
       availableListings.forEach(item => {
         reservedMap[item._id.toString()] = item.totalReserved;
       });
-      
+
       const allListings = await Listing.find({
         status: 'published',
         isActive: true
       }, '_id totalQuantity').lean();
-      
+
       return allListings
         .filter(listing => {
           const reserved = reservedMap[listing._id.toString()] || 0;
           return listing.totalQuantity - reserved >= quantity;
         })
         .map(listing => listing._id);
-        
+
     } catch (error) {
       logger.error('Get available listings failed', { error: error.message });
       return [];
     }
   }
-  
+
   /**
    * Helper method to get similar listings
    */
@@ -887,11 +889,11 @@ class ListingController {
         isActive: true,
         'location.city': listing.location.city
       })
-      .populate('ownerId', 'name profile.displayName lenderStats.rating')
-      .sort({ 'ratings.average': -1, bookingCount: -1 })
-      .limit(limit)
-      .lean();
-      
+        .populate('ownerId', 'name profile.displayName lenderStats.rating')
+        .sort({ 'ratings.average': -1, bookingCount: -1 })
+        .limit(limit)
+        .lean();
+
       return similarListings;
     } catch (error) {
       logger.error('Get similar listings failed', { error: error.message });
