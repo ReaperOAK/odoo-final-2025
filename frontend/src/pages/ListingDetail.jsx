@@ -5,8 +5,11 @@ import {
   StarIcon,
   ArrowLeftIcon,
   PhotoIcon,
+  CalendarIcon,
+  XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { listingsAPI } from "../api/listings";
+import { ordersAPI } from "../api/orders";
 import { useAuth } from "../context/AuthContext";
 import toast from "react-hot-toast";
 
@@ -18,6 +21,15 @@ const ListingDetail = () => {
   const [listing, setListing] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  
+  // Booking modal state
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [bookingData, setBookingData] = useState({
+    startDate: '',
+    endDate: '',
+    quantity: 1
+  });
+  const [bookingLoading, setBookingLoading] = useState(false);
 
   useEffect(() => {
     loadListing();
@@ -67,6 +79,109 @@ const ListingDetail = () => {
       setCurrentImageIndex((prev) =>
         prev === 0 ? listing.images.length - 1 : prev - 1
       );
+    }
+  };
+
+  // Booking functions
+  const getTomorrowDate = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toISOString().split('T')[0];
+  };
+
+  const openBookingModal = () => {
+    if (!user) {
+      toast.error("Please login to book this item");
+      navigate("/login");
+      return;
+    }
+    setShowBookingModal(true);
+  };
+
+  const closeBookingModal = () => {
+    setShowBookingModal(false);
+    setBookingData({
+      startDate: '',
+      endDate: '',
+      quantity: 1
+    });
+  };
+
+  const calculateDuration = () => {
+    if (!bookingData.startDate || !bookingData.endDate) return 0;
+    const start = new Date(bookingData.startDate);
+    const end = new Date(bookingData.endDate);
+    const diffTime = Math.abs(end - start);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays || 1;
+  };
+
+  const calculateTotal = () => {
+    const duration = calculateDuration();
+    const basePrice = Number(listing?.basePrice || 0);
+    const quantity = Number(bookingData.quantity);
+    return duration * basePrice * quantity;
+  };
+
+  const handleBooking = async () => {
+    if (!bookingData.startDate || !bookingData.endDate) {
+      toast.error("Please select start and end dates");
+      return;
+    }
+
+    if (new Date(bookingData.startDate) >= new Date(bookingData.endDate)) {
+      toast.error("End date must be after start date");
+      return;
+    }
+
+    if (bookingData.quantity < 1) {
+      toast.error("Quantity must be at least 1");
+      return;
+    }
+
+    try {
+      setBookingLoading(true);
+      
+      const duration = calculateDuration();
+      const unitPrice = Number(listing.basePrice);
+      const subtotal = calculateTotal();
+      const depositAmount = listing.depositType === 'percentage' 
+        ? (subtotal * Number(listing.depositValue)) / 100
+        : Number(listing.depositValue || 0);
+
+      const orderData = {
+        lineItems: [{
+          listingId: listing._id,
+          quantity: Number(bookingData.quantity),
+          startDate: bookingData.startDate,
+          endDate: bookingData.endDate,
+          unitPrice: unitPrice,
+          duration: duration,
+          subtotal: subtotal,
+          depositAmount: depositAmount
+        }],
+        paymentMode: 'razorpay',
+        metadata: {
+          source: 'listing_detail_page'
+        }
+      };
+
+      console.log("Creating order with data:", orderData);
+      const response = await ordersAPI.createOrder(orderData);
+      
+      if (response.success) {
+        toast.success("Booking created successfully!");
+        closeBookingModal();
+        // Navigate to My Bookings page to see the new booking
+        navigate("/my-bookings");
+      } else {
+        toast.error(response.message || "Failed to create booking");
+      }
+    } catch (error) {
+      console.error("Booking error:", error);
+      toast.error("Failed to create booking. Please try again.");
+    } finally {
+      setBookingLoading(false);
     }
   };
 
@@ -287,20 +402,165 @@ const ListingDetail = () => {
 
               <div className="pt-4 border-t border-gray-200">
                 <button
-                  className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200 font-semibold"
-                  onClick={() =>
-                    toast.success(
-                      "Booking functionality will be implemented next!"
-                    )
-                  }
+                  className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200 font-semibold disabled:opacity-50"
+                  onClick={openBookingModal}
+                  disabled={!listing?.isAvailable || listing?.availableQuantity === 0}
                 >
-                  Book Now
+                  {listing?.isAvailable && listing?.availableQuantity > 0 
+                    ? "Book Now" 
+                    : "Currently Unavailable"
+                  }
                 </button>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Booking Modal */}
+      {showBookingModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">Book This Item</h3>
+              <button
+                onClick={closeBookingModal}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <XMarkIcon className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-4">
+              {/* Listing Info */}
+              <div className="flex items-start space-x-3 p-4 bg-gray-50 rounded-lg">
+                {listing?.images?.[0] && (
+                  <img
+                    src={listing.images[0]}
+                    alt={String(listing.title)}
+                    className="w-16 h-16 object-cover rounded-lg"
+                  />
+                )}
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-medium text-gray-900 truncate">
+                    {String(listing?.title || 'N/A')}
+                  </h4>
+                  <p className="text-sm text-gray-600">
+                    ₹{Number(listing?.basePrice || 0).toLocaleString()}/day
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {Number(listing?.availableQuantity || 0)} available
+                  </p>
+                </div>
+              </div>
+
+              {/* Date Selection */}
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Start Date
+                  </label>
+                  <input
+                    type="date"
+                    value={bookingData.startDate}
+                    onChange={(e) => setBookingData(prev => ({ ...prev, startDate: e.target.value }))}
+                    min={getTomorrowDate()}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    End Date
+                  </label>
+                  <input
+                    type="date"
+                    value={bookingData.endDate}
+                    onChange={(e) => setBookingData(prev => ({ ...prev, endDate: e.target.value }))}
+                    min={bookingData.startDate || getTomorrowDate()}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Quantity
+                  </label>
+                  <input
+                    type="number"
+                    value={bookingData.quantity}
+                    onChange={(e) => setBookingData(prev => ({ ...prev, quantity: Math.max(1, parseInt(e.target.value) || 1) }))}
+                    min="1"
+                    max={listing?.availableQuantity || 1}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              {/* Pricing Summary */}
+              {bookingData.startDate && bookingData.endDate && (
+                <div className="bg-blue-50 p-4 rounded-lg space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Duration:</span>
+                    <span>{calculateDuration()} days</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>Price per day:</span>
+                    <span>₹{Number(listing?.basePrice || 0).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>Quantity:</span>
+                    <span>{bookingData.quantity}</span>
+                  </div>
+                  <div className="flex justify-between text-sm border-t border-blue-200 pt-2">
+                    <span>Subtotal:</span>
+                    <span>₹{calculateTotal().toLocaleString()}</span>
+                  </div>
+                  {listing?.depositValue > 0 && (
+                    <div className="flex justify-between text-sm text-blue-700">
+                      <span>Security Deposit:</span>
+                      <span>
+                        ₹{(
+                          listing.depositType === 'percentage'
+                            ? (calculateTotal() * Number(listing.depositValue)) / 100
+                            : Number(listing.depositValue)
+                        ).toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-semibold text-base border-t border-blue-200 pt-2">
+                    <span>Total:</span>
+                    <span>₹{(calculateTotal() + (
+                      listing?.depositType === 'percentage'
+                        ? (calculateTotal() * Number(listing?.depositValue || 0)) / 100
+                        : Number(listing?.depositValue || 0)
+                    )).toLocaleString()}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex space-x-3 p-6 border-t border-gray-200">
+              <button
+                onClick={closeBookingModal}
+                className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBooking}
+                disabled={!bookingData.startDate || !bookingData.endDate || bookingLoading}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {bookingLoading ? "Creating..." : "Confirm Booking"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
