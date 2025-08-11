@@ -88,4 +88,4 @@ After seeding the database, you can use these accounts:
 
 ## API Documentation
 
-See [API_DOCUMENTATION.md](./API_DOCUMENTATION.md) for detailed API reference.
+See [COMPREHENSIVE_API_DOCUMENTATION.md](./COMPREHENSIVE_API_DOCUMENTATION.md) for detailed API reference with all endpoints, data models, and examples.
