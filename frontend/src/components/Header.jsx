@@ -51,7 +51,9 @@ export default function Header() {
               },
               { name: "Add Listing", href: "/listings/create", icon: PlusIcon },
             ]
-          : []),
+          : [
+              { name: "Become a Host", href: "/become-host", icon: BuildingStorefrontIcon },
+            ]),
         { name: `${user.name}`, href: "/profile", icon: UserCircleIcon },
         ...(isAdmin()
           ? [

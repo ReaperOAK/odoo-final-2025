@@ -17,6 +17,7 @@ const ProductDetail = lazy(() => import("./pages/ProductDetail"));
 const Listings = lazy(() => import("./pages/Listings"));
 const ListingDetail = lazy(() => import("./pages/ListingDetail"));
 const CreateListing = lazy(() => import("./pages/CreateListing"));
+const BecomeHost = lazy(() => import("./pages/BecomeHost"));
 const HostDashboard = lazy(() => import("./pages/HostDashboard"));
 const MyListings = lazy(() => import("./pages/MyListings"));
 const HostProfile = lazy(() => import("./pages/HostProfile"));
@@ -74,6 +75,14 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <Profile />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/become-host"
+                  element={
+                    <ProtectedRoute>
+                      <BecomeHost />
                     </ProtectedRoute>
                   }
                 />
