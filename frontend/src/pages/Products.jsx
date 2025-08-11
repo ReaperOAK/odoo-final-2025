@@ -31,9 +31,12 @@ export default function Products() {
         sort: sortBy,
       };
 
-      const data = await productsAPI.getProducts(params);
-      setProducts(data.products || []);
-      setTotalPages(Math.ceil((data.total || 0) / 12));
+      const response = await productsAPI.getProducts(params);
+      console.log("Products API response:", response);
+      console.log("Products data:", response.data);
+      console.log("Pagination:", response.pagination);
+      setProducts(response.data || []);
+      setTotalPages(response.pagination?.pages || 1);
     } catch (error) {
       console.error("Failed to fetch products:", error);
     } finally {
