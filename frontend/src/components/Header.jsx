@@ -32,7 +32,7 @@ export default function Header() {
   const userNavigation = user
     ? [
         { name: "My Bookings", href: "/my-bookings", icon: ShoppingBagIcon },
-        { name: "Profile", href: "/profile", icon: UserCircleIcon },
+        { name: `${user.name}`, href: "/profile", icon: UserCircleIcon },
         ...(isAdmin()
           ? [
               {
