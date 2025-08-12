@@ -1,110 +1,117 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
+import { ordersAPI, listingsAPI } from "../lib/api";
+import { useAuth } from "../contexts/AuthContext";
+import { useData } from "../contexts/DataContext";
 import {
-  MapPinIcon,
-  StarIcon,
-  ArrowLeftIcon,
-  PhotoIcon,
-  CalendarIcon,
-  XMarkIcon,
-} from "@heroicons/react/24/outline";
-import { listingsAPI } from "../api/listings";
-import { ordersAPI } from "../api/orders";
-import { useAuth } from "../context/AuthContext";
-import toast from "react-hot-toast";
+  Calendar,
+  MapPin,
+  User,
+  Package,
+  Shield,
+  Clock,
+  Star,
+  Tag,
+} from "lucide-react";
+import Button from "../components/ui/Button";
+import Card from "../components/ui/Card";
 
 const ListingDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
+  const { state, actions } = useData();
 
-  const [listing, setListing] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  
-  // Booking modal state
-  const [showBookingModal, setShowBookingModal] = useState(false);
   const [bookingData, setBookingData] = useState({
-    startDate: '',
-    endDate: '',
-    quantity: 1
+    startDate: "",
+    endDate: "",
+    quantity: 1,
+    paymentOption: "deposit",
   });
-  const [bookingLoading, setBookingLoading] = useState(false);
+  const [availabilityData, setAvailabilityData] = useState(null);
+  const [showBookingForm, setShowBookingForm] = useState(false);
+  const [creatingOrder, setCreatingOrder] = useState(false);
 
+  // Fetch listing when component mounts
   useEffect(() => {
-    loadListing();
-  }, [id]);
+    if (id) {
+      actions.fetchListing(id);
+    }
+  }, [id]); // Remove actions from dependency array
 
-  const loadListing = async () => {
+  const listing = state.currentListing;
+  const isLoading = state.currentListingLoading;
+  const error = state.currentListingError;
+
+  const createOrder = async (orderData) => {
+    setCreatingOrder(true);
     try {
-      setLoading(true);
-      console.log("Starting to load listing with ID:", id);
-      const response = await listingsAPI.getListing(id);
-      console.log("Full API response:", response);
-
-      if (response.success) {
-        console.log("API response data:", response.data);
-        console.log("Listing from response:", response.data.listing);
-        setListing(response.data.listing);
-        console.log("Listing set in state");
-
-        if (response.data.availability) {
-          console.log("Backend availability:", response.data.availability);
-        }
-        if (response.data.pricing) {
-          console.log("Backend pricing:", response.data.pricing);
-        }
+      const response = await ordersAPI.create(orderData);
+      console.log("Order creation success:", response);
+      console.log(
+        "Response data structure:",
+        JSON.stringify(response.data, null, 2)
+      );
+      const orderId =
+        response.data.data?.order?._id || response.data.order?._id;
+      console.log("Extracted order ID:", orderId);
+      if (orderId) {
+        navigate(`/checkout/${orderId}`);
       } else {
-        console.log("API response failed:", response);
-        throw new Error(response.message || "Listing not found");
+        alert("Order created but no ID returned");
       }
     } catch (error) {
-      console.error("Error loading listing:", error);
-      toast.error("Failed to load listing");
-      navigate("/listings");
+      console.error("Order creation error:", error);
+      console.error("Error response:", error.response?.data);
+      console.error("Error status:", error.response?.status);
+      console.error("Error headers:", error.response?.headers);
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to create order";
+      alert(`Order creation failed: ${errorMessage}`);
     } finally {
-      console.log("Setting loading to false");
-      setLoading(false);
+      setCreatingOrder(false);
     }
   };
 
-  const nextImage = () => {
-    if (listing?.images && listing.images.length > 0) {
-      setCurrentImageIndex((prev) => (prev + 1) % listing.images.length);
+  const checkAvailability = async ({ start, end, qty }) => {
+    try {
+      const response = await listingsAPI.checkAvailability(id, {
+        start: start,
+        end: end,
+        qty: qty
+      });
+      console.log("Availability response:", response.data);
+      
+      const availabilityData = response.data.data;
+      // Map the API response to the expected UI structure
+      const uiAvailabilityData = {
+        available: availabilityData.available,
+        availableQty: availabilityData.availableQty,
+        pricing: availabilityData.pricing,
+        details: availabilityData.nextAvailable?.map(slot => ({
+          message: `Alternative: ${new Date(slot.start).toLocaleDateString()} - ${new Date(slot.end).toLocaleDateString()}`
+        })) || []
+      };
+      
+      setAvailabilityData(uiAvailabilityData);
+      return response.data;
+    } catch (error) {
+      console.error("Availability check error:", error);
+      setAvailabilityData({ 
+        available: false, 
+        error: error.response?.data?.message || error.message || "Availability check failed"
+      });
+      return null;
     }
   };
 
-  const prevImage = () => {
-    if (listing?.images && listing.images.length > 0) {
-      setCurrentImageIndex((prev) =>
-        prev === 0 ? listing.images.length - 1 : prev - 1
-      );
-    }
-  };
-
-  // Booking functions
-  const getTomorrowDate = () => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return tomorrow.toISOString().split('T')[0];
-  };
-
-  const openBookingModal = () => {
-    if (!user) {
-      toast.error("Please login to book this item");
-      navigate("/login");
-      return;
-    }
-    setShowBookingModal(true);
-  };
-
-  const closeBookingModal = () => {
-    setShowBookingModal(false);
-    setBookingData({
-      startDate: '',
-      endDate: '',
-      quantity: 1
-    });
+  const formatPrice = (price) => {
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+    }).format(price);
   };
 
   const calculateDuration = () => {
@@ -113,454 +120,468 @@ const ListingDetail = () => {
     const end = new Date(bookingData.endDate);
     const diffTime = Math.abs(end - start);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays || 1;
+    return diffDays;
   };
 
-  const calculateTotal = () => {
+  const calculateTotalPrice = () => {
     const duration = calculateDuration();
-    const basePrice = Number(listing?.basePrice || 0);
-    const quantity = Number(bookingData.quantity);
-    return duration * basePrice * quantity;
+    if (!listing?.basePrice || duration <= 0) {
+      return { subtotal: 0, deposit: 0, duration: 0 };
+    }
+
+    const subtotal = listing.basePrice * duration * bookingData.quantity;
+    const deposit =
+      listing.depositType === "percent"
+        ? subtotal * (listing.depositValue / 100)
+        : listing.depositValue * bookingData.quantity;
+
+    return {
+      subtotal,
+      deposit,
+      duration,
+    };
   };
 
-  const handleBooking = async () => {
+  const handleBookingSubmit = () => {
+    console.log("Auth state:", { user, isAuthenticated });
+
+    if (!isAuthenticated) {
+      console.log("User not authenticated, redirecting to login");
+      navigate("/login");
+      return;
+    }
+
     if (!bookingData.startDate || !bookingData.endDate) {
-      toast.error("Please select start and end dates");
+      alert("Please select start and end dates");
       return;
     }
 
-    if (new Date(bookingData.startDate) >= new Date(bookingData.endDate)) {
-      toast.error("End date must be after start date");
-      return;
-    }
+    const { subtotal, deposit, duration } = calculateTotalPrice();
 
-    if (bookingData.quantity < 1) {
-      toast.error("Quantity must be at least 1");
-      return;
-    }
+    const orderData = {
+      lines: [
+        {
+          listingId: id,
+          qty: bookingData.quantity,
+          start: new Date(bookingData.startDate).toISOString(),
+          end: new Date(bookingData.endDate).toISOString(),
+        },
+      ],
+      paymentOption: bookingData.paymentOption,
+    };
 
-    try {
-      setBookingLoading(true);
-      
-      const duration = calculateDuration();
-      const unitPrice = Number(listing.basePrice);
-      const subtotal = calculateTotal();
-      const depositAmount = listing.depositType === 'percentage' 
-        ? (subtotal * Number(listing.depositValue)) / 100
-        : Number(listing.depositValue || 0);
+    console.log("Creating order with data:", orderData);
+    console.log("User token exists:", !!localStorage.getItem("token"));
+    createOrder(orderData);
+  };
 
-      const orderData = {
-        lineItems: [{
-          listingId: listing._id,
-          quantity: Number(bookingData.quantity),
-          startDate: bookingData.startDate,
-          endDate: bookingData.endDate,
-          unitPrice: unitPrice,
-          duration: duration,
-          subtotal: subtotal,
-          depositAmount: depositAmount
-        }],
-        paymentMode: 'razorpay',
-        metadata: {
-          source: 'listing_detail_page'
-        }
-      };
-
-      console.log("Creating order with data:", orderData);
-      const response = await ordersAPI.createOrder(orderData);
-      
-      if (response.success) {
-        toast.success("Booking created successfully!");
-        closeBookingModal();
-        // Navigate to My Bookings page to see the new booking
-        navigate("/my-bookings");
-      } else {
-        toast.error(response.message || "Failed to create booking");
-      }
-    } catch (error) {
-      console.error("Booking error:", error);
-      toast.error("Failed to create booking. Please try again.");
-    } finally {
-      setBookingLoading(false);
+  const handleCheckAvailability = () => {
+    if (bookingData.startDate && bookingData.endDate) {
+      checkAvailability({
+        start: new Date(bookingData.startDate).toISOString(),
+        end: new Date(bookingData.endDate).toISOString(),
+        qty: bookingData.quantity,
+      });
     }
   };
 
-  console.log("Component render - loading:", loading, "listing:", listing);
-
-  if (loading) {
-    console.log("Showing loading state");
+  if (isLoading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="animate-pulse space-y-6">
-          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="h-96 bg-gray-200 rounded-lg"></div>
-            <div className="space-y-4">
-              <div className="h-8 bg-gray-200 rounded w-3/4"></div>
-              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-              <div className="h-32 bg-gray-200 rounded"></div>
-            </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="animate-pulse">
+          <div className="bg-gray-300 rounded-lg h-96 mb-6"></div>
+          <div className="space-y-4">
+            <div className="bg-gray-300 h-8 rounded w-3/4"></div>
+            <div className="bg-gray-300 h-4 rounded w-1/2"></div>
+            <div className="bg-gray-300 h-20 rounded"></div>
           </div>
         </div>
       </div>
     );
   }
 
-  if (!listing) {
-    console.log("Listing is null/undefined, showing not found page");
+  if (error) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-16 text-center">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">
-          Listing not found
-        </h2>
-        <p className="text-gray-600 mb-8">
-          The listing you're looking for doesn't exist or has been removed.
-        </p>
-        <Link
-          to="/listings"
-          className="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors duration-200"
-        >
-          <ArrowLeftIcon className="w-5 h-5 mr-2" />
-          Back to Listings
-        </Link>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">
+            Listing Not Found
+          </h1>
+          <p className="text-gray-600">
+            The listing you're looking for doesn't exist.
+          </p>
+        </div>
       </div>
     );
   }
 
-  console.log("Rendering listing detail for:", listing?.title);
+  const isOwner = user?._id === listing?.ownerId?._id;
+  const priceInfo = calculateTotalPrice();
 
-  const hasImages = listing.images && listing.images.length > 0;
+  // Debug auth state
+  console.log("Auth Debug:", {
+    user,
+    isAuthenticated,
+    token: !!localStorage.getItem("token"),
+    isOwner,
+  });
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      {/* Back Button */}
-      <button
-        onClick={() => navigate(-1)}
-        className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-6 transition-colors duration-200"
-      >
-        <ArrowLeftIcon className="w-5 h-5 mr-2" />
-        Back
-      </button>
-
-      {/* Main Content */}
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column - Images and Details */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Title Section */}
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              {String(listing.title || "No Title")}
-            </h1>
-            <div className="flex items-center space-x-4 text-gray-600">
-              <div className="flex items-center">
-                <MapPinIcon className="w-5 h-5 mr-1" />
-                <span>
-                  {typeof listing.location === "object"
-                    ? `${listing.location?.city || ""}, ${
-                        listing.location?.state || ""
-                      }`
-                    : String(listing.location || "Location not specified")}
+        {/* Images and Details */}
+        <div className="lg:col-span-2">
+          {/* Image Gallery */}
+          <div className="mb-6">
+            <img
+              src={listing?.images?.[0] || "/placeholder-image.jpg"}
+              alt={listing?.title}
+              className="w-full h-96 object-cover rounded-lg"
+            />
+            {listing?.images?.length > 1 && (
+              <div className="grid grid-cols-4 gap-2 mt-2">
+                {listing.images.slice(1, 5).map((image, index) => (
+                  <img
+                    key={index}
+                    src={image}
+                    alt={`${listing.title} ${index + 2}`}
+                    className="w-full h-20 object-cover rounded-md"
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Listing Info */}
+          <div className="space-y-6">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h1 className="text-3xl font-bold text-gray-900">
+                  {listing?.title}
+                </h1>
+                <span className="bg-gray-100 text-gray-800 text-sm px-3 py-1 rounded-full">
+                  {listing?.category?.charAt(0).toUpperCase() +
+                    listing?.category?.slice(1)}
                 </span>
               </div>
-              {listing.ratings?.average > 0 && (
+
+              <div className="flex items-center space-x-4 text-gray-600">
                 <div className="flex items-center">
-                  <StarIcon className="w-5 h-5 mr-1 text-yellow-400 fill-current" />
-                  <span>{Number(listing.ratings.average).toFixed(1)}</span>
-                  <span className="ml-1">
-                    ({Number(listing.ratings.count)} reviews)
+                  <MapPin className="h-4 w-4 mr-1" />
+                  {listing?.location}
+                </div>
+                <div className="flex items-center">
+                  <Package className="h-4 w-4 mr-1" />
+                  {listing?.totalQuantity} available
+                </div>
+              </div>
+            </div>
+
+            <div className="prose max-w-none">
+              <h3 className="text-lg font-semibold mb-2">About This Item</h3>
+              <p className="text-gray-600">{listing?.description}</p>
+            </div>
+
+            {/* Features */}
+            {listing?.features?.length > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold mb-3">Key Features</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {listing.features.map((feature, index) => (
+                    <div key={index} className="flex items-center">
+                      <Star className="h-4 w-4 text-yellow-500 mr-2" />
+                      <span className="text-sm text-gray-700">{feature}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Rental Rules */}
+            {listing?.rules?.length > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold mb-3">Rental Rules</h3>
+                <div className="space-y-2">
+                  {listing.rules.map((rule, index) => (
+                    <div key={index} className="flex items-center">
+                      <Shield className="h-4 w-4 text-blue-500 mr-2" />
+                      <span className="text-sm text-gray-700">{rule}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Owner Info */}
+            {listing?.ownerId && (
+              <Card>
+                <Card.Content className="p-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="bg-gray-200 rounded-full p-2">
+                      <User className="h-6 w-6 text-gray-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold">{listing.ownerId.name}</h4>
+                      <p className="text-sm text-gray-600">Item Owner</p>
+                      {listing.ownerId.hostProfile?.verified && (
+                        <div className="flex items-center mt-1">
+                          <Shield className="h-4 w-4 text-green-500 mr-1" />
+                          <span className="text-sm text-green-600">
+                            Verified Owner
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </Card.Content>
+              </Card>
+            )}
+          </div>
+        </div>
+
+        {/* Rental Card */}
+        <div className="lg:col-span-1">
+          <Card className="sticky top-4">
+            <Card.Content className="p-6">
+              <div className="mb-4">
+                <div className="text-2xl font-bold text-gray-900">
+                  {listing?.basePrice
+                    ? formatPrice(listing.basePrice)
+                    : "Price not available"}
+                  <span className="text-base font-normal text-gray-600">
+                    /{listing?.unitType || "day"}
                   </span>
                 </div>
-              )}
-            </div>
-          </div>
+                <div className="text-sm text-gray-600">
+                  {listing?.depositType === "percent" &&
+                    `${listing?.depositValue || 0}% security deposit required`}
+                  {listing?.depositType === "flat" &&
+                    `${
+                      listing?.depositValue
+                        ? formatPrice(listing.depositValue)
+                        : "No deposit"
+                    } security deposit required`}
+                </div>
+              </div>
 
-          {/* Debug Info */}
-          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-            <h2 className="text-xl font-semibold mb-2 text-blue-800">
-              ✅ Listing Detail is Working!
-            </h2>
-            <div className="text-sm text-blue-700 space-y-1">
-              <p>
-                <strong>Listing ID:</strong> {String(listing._id || "N/A")}
-              </p>
-              <p>
-                <strong>Title:</strong> {String(listing.title || "N/A")}
-              </p>
-              <p>
-                <strong>Has Images:</strong> {hasImages ? "Yes" : "No"} (
-                {Number(listing.images?.length || 0)} images)
-              </p>
-              <p>
-                <strong>Base Price:</strong> ₹
-                {Number(listing.basePrice || 0).toLocaleString()}
-              </p>
-              <p>
-                <strong>Category:</strong>{" "}
-                {String(listing.category || "Not specified")}
-              </p>
-              <p>
-                <strong>Status:</strong> {String(listing.status || "Unknown")}
-              </p>
-              <p>
-                <strong>Available Quantity:</strong>{" "}
-                {Number(listing.availableQuantity || 0)} units
-              </p>
-            </div>
-          </div>
+              {!isOwner ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Rental Start
+                      </label>
+                      <input
+                        type="date"
+                        value={bookingData.startDate}
+                        min={
+                          new Date(Date.now() + 24 * 60 * 60 * 1000)
+                            .toISOString()
+                            .split("T")[0]
+                        }
+                        onChange={(e) => {
+                          setBookingData({
+                            ...bookingData,
+                            startDate: e.target.value,
+                          });
+                          setAvailabilityData(null);
+                        }}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Rental End
+                      </label>
+                      <input
+                        type="date"
+                        value={bookingData.endDate}
+                        min={
+                          bookingData.startDate ||
+                          new Date(Date.now() + 24 * 60 * 60 * 1000)
+                            .toISOString()
+                            .split("T")[0]
+                        }
+                        onChange={(e) => {
+                          setBookingData({
+                            ...bookingData,
+                            endDate: e.target.value,
+                          });
+                          setAvailabilityData(null);
+                        }}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
+                      />
+                    </div>
+                  </div>
 
-          {/* Images section */}
-          {hasImages ? (
-            <div className="space-y-4">
-              <div className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden">
-                <img
-                  src={listing.images[currentImageIndex]}
-                  alt={String(listing.title || "Listing image")}
-                  className="w-full h-full object-cover"
-                />
-                {listing.images.length > 1 && (
-                  <>
-                    <button
-                      onClick={prevImage}
-                      className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/80 backdrop-blur-sm p-2 rounded-full hover:bg-white transition-colors duration-200"
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Quantity Needed
+                    </label>
+                    <select
+                      value={bookingData.quantity}
+                      onChange={(e) => {
+                        setBookingData({
+                          ...bookingData,
+                          quantity: parseInt(e.target.value),
+                        });
+                        setAvailabilityData(null);
+                      }}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500"
                     >
-                      <ArrowLeftIcon className="w-5 h-5" />
-                    </button>
-                    <button
-                      onClick={nextImage}
-                      className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/80 backdrop-blur-sm p-2 rounded-full hover:bg-white transition-colors duration-200"
+                      {[...Array(Math.min(listing?.totalQuantity || 1, 5))].map(
+                        (_, i) => (
+                          <option key={i + 1} value={i + 1}>
+                            {i + 1}
+                          </option>
+                        )
+                      )}
+                    </select>
+                  </div>
+
+                  {bookingData.startDate &&
+                    bookingData.endDate &&
+                    priceInfo.duration > 0 && (
+                      <div className="bg-gray-50 p-3 rounded-md space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span>Duration:</span>
+                          <span>
+                            {priceInfo.duration} {listing?.unitType}(s)
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span>Subtotal:</span>
+                          <span>{formatPrice(priceInfo.subtotal)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span>Deposit:</span>
+                          <span>{formatPrice(priceInfo.deposit)}</span>
+                        </div>
+                        <hr />
+                        <div className="flex justify-between font-semibold">
+                          <span>Total to pay now:</span>
+                          <span>
+                            {formatPrice(
+                              bookingData.paymentOption === "full"
+                                ? priceInfo.subtotal
+                                : priceInfo.deposit
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Payment Option
+                    </label>
+                    <div className="space-y-2">
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="paymentOption"
+                          value="deposit"
+                          checked={bookingData.paymentOption === "deposit"}
+                          onChange={(e) =>
+                            setBookingData({
+                              ...bookingData,
+                              paymentOption: e.target.value,
+                            })
+                          }
+                          className="mr-2"
+                        />
+                        <span className="text-sm">
+                          Pay security deposit now
+                        </span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="paymentOption"
+                          value="full"
+                          checked={bookingData.paymentOption === "full"}
+                          onChange={(e) =>
+                            setBookingData({
+                              ...bookingData,
+                              paymentOption: e.target.value,
+                            })
+                          }
+                          className="mr-2"
+                        />
+                        <span className="text-sm">
+                          Pay full rental amount now
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {availabilityData && (
+                    <div
+                      className={`p-3 rounded-md ${
+                        availabilityData.available
+                          ? "bg-green-50 text-green-800"
+                          : "bg-red-50 text-red-800"
+                      }`}
                     >
-                      <ArrowLeftIcon className="w-5 h-5 transform rotate-180" />
-                    </button>
-                  </>
-                )}
-                <div className="absolute bottom-4 right-4 bg-black/50 text-white px-3 py-1 rounded-full text-sm">
-                  {currentImageIndex + 1} / {listing.images.length}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
-              <div className="text-center text-gray-400">
-                <PhotoIcon className="w-16 h-16 mx-auto mb-2" />
-                <p>No images available</p>
-              </div>
-            </div>
-          )}
-
-          {/* Description */}
-          <div className="bg-white p-6 rounded-lg border border-gray-200">
-            <h3 className="text-xl font-semibold mb-4">Description</h3>
-            <p className="text-gray-700 leading-relaxed">
-              {String(listing.description || "No description available")}
-            </p>
-          </div>
-        </div>
-
-        {/* Right Column - Booking Widget */}
-        <div className="space-y-6">
-          <div className="bg-white border border-gray-200 rounded-lg p-6 sticky top-8">
-            <div className="mb-4">
-              <div className="text-2xl font-bold text-gray-900">
-                ₹{Number(listing.basePrice || 0).toLocaleString()}/day
-              </div>
-              <p className="text-gray-600">
-                {String(listing.unitType || "per unit")}
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>
-                  <span className="text-gray-600">Category:</span>
-                  <div className="font-medium">
-                    {String(listing.category || "N/A")}
-                  </div>
-                </div>
-                <div>
-                  <span className="text-gray-600">Available:</span>
-                  <div className="font-medium">
-                    {Number(listing.availableQuantity || 0)} units
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-4 border-t border-gray-200">
-                <h4 className="font-semibold mb-2">Features</h4>
-                {listing.features && listing.features.length > 0 ? (
-                  <ul className="text-sm text-gray-600 space-y-1">
-                    {listing.features.map((feature, index) => (
-                      <li key={index} className="flex items-center">
-                        <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-                        {String(feature)}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-gray-500">No features listed</p>
-                )}
-              </div>
-
-              <div className="pt-4 border-t border-gray-200">
-                <button
-                  className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200 font-semibold disabled:opacity-50"
-                  onClick={openBookingModal}
-                  disabled={!listing?.isAvailable || listing?.availableQuantity === 0}
-                >
-                  {listing?.isAvailable && listing?.availableQuantity > 0 
-                    ? "Book Now" 
-                    : "Currently Unavailable"
-                  }
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Booking Modal */}
-      {showBookingModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Book This Item</h3>
-              <button
-                onClick={closeBookingModal}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <XMarkIcon className="w-6 h-6" />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-6 space-y-4">
-              {/* Listing Info */}
-              <div className="flex items-start space-x-3 p-4 bg-gray-50 rounded-lg">
-                {listing?.images?.[0] && (
-                  <img
-                    src={listing.images[0]}
-                    alt={String(listing.title)}
-                    className="w-16 h-16 object-cover rounded-lg"
-                  />
-                )}
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-medium text-gray-900 truncate">
-                    {String(listing?.title || 'N/A')}
-                  </h4>
-                  <p className="text-sm text-gray-600">
-                    ₹{Number(listing?.basePrice || 0).toLocaleString()}/day
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {Number(listing?.availableQuantity || 0)} available
-                  </p>
-                </div>
-              </div>
-
-              {/* Date Selection */}
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Start Date
-                  </label>
-                  <input
-                    type="date"
-                    value={bookingData.startDate}
-                    onChange={(e) => setBookingData(prev => ({ ...prev, startDate: e.target.value }))}
-                    min={getTomorrowDate()}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    End Date
-                  </label>
-                  <input
-                    type="date"
-                    value={bookingData.endDate}
-                    onChange={(e) => setBookingData(prev => ({ ...prev, endDate: e.target.value }))}
-                    min={bookingData.startDate || getTomorrowDate()}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Quantity
-                  </label>
-                  <input
-                    type="number"
-                    value={bookingData.quantity}
-                    onChange={(e) => setBookingData(prev => ({ ...prev, quantity: Math.max(1, parseInt(e.target.value) || 1) }))}
-                    min="1"
-                    max={listing?.availableQuantity || 1}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
-
-              {/* Pricing Summary */}
-              {bookingData.startDate && bookingData.endDate && (
-                <div className="bg-blue-50 p-4 rounded-lg space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Duration:</span>
-                    <span>{calculateDuration()} days</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span>Price per day:</span>
-                    <span>₹{Number(listing?.basePrice || 0).toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span>Quantity:</span>
-                    <span>{bookingData.quantity}</span>
-                  </div>
-                  <div className="flex justify-between text-sm border-t border-blue-200 pt-2">
-                    <span>Subtotal:</span>
-                    <span>₹{calculateTotal().toLocaleString()}</span>
-                  </div>
-                  {listing?.depositValue > 0 && (
-                    <div className="flex justify-between text-sm text-blue-700">
-                      <span>Security Deposit:</span>
-                      <span>
-                        ₹{(
-                          listing.depositType === 'percentage'
-                            ? (calculateTotal() * Number(listing.depositValue)) / 100
-                            : Number(listing.depositValue)
-                        ).toLocaleString()}
-                      </span>
+                      <div className="flex items-center mb-1">
+                        <Clock className="h-4 w-4 mr-2" />
+                        {availabilityData.available
+                          ? "Available for selected dates"
+                          : availabilityData.error ||
+                            "Not available for selected dates"}
+                      </div>
+                      {availabilityData.details &&
+                        availabilityData.details.length > 0 && (
+                          <div className="text-xs mt-1">
+                            {availabilityData.details.map((detail, index) => (
+                              <div key={index}>{detail.message}</div>
+                            ))}
+                          </div>
+                        )}
                     </div>
                   )}
-                  <div className="flex justify-between font-semibold text-base border-t border-blue-200 pt-2">
-                    <span>Total:</span>
-                    <span>₹{(calculateTotal() + (
-                      listing?.depositType === 'percentage'
-                        ? (calculateTotal() * Number(listing?.depositValue || 0)) / 100
-                        : Number(listing?.depositValue || 0)
-                    )).toLocaleString()}</span>
+
+                  <div className="space-y-2">
+                    <Button
+                      onClick={handleCheckAvailability}
+                      variant="glass"
+                      className="w-full text-gray-900 font-semibold"
+                      disabled={!bookingData.startDate || !bookingData.endDate}
+                    >
+                      🔍 Check Availability
+                    </Button>
+                    <Button
+                      onClick={handleBookingSubmit}
+                      variant="primary"
+                      className="w-full text-white font-bold"
+                      disabled={
+                        !bookingData.startDate ||
+                        !bookingData.endDate ||
+                        creatingOrder
+                      }
+                    >
+                      {creatingOrder
+                        ? "⏳ Creating Rental Order..."
+                        : "🏠 Rent Now"}
+                    </Button>
                   </div>
                 </div>
+              ) : (
+                <div className="text-center py-4">
+                  <p className="text-gray-600">This is your item listing</p>
+                  <Button
+                    variant="glass"
+                    className="mt-2 text-gray-900 font-semibold"
+                    onClick={() => navigate("/host/dashboard")}
+                  >
+                    ⚙️ Manage Item
+                  </Button>
+                </div>
               )}
-            </div>
-
-            {/* Modal Footer */}
-            <div className="flex space-x-3 p-6 border-t border-gray-200">
-              <button
-                onClick={closeBookingModal}
-                className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleBooking}
-                disabled={!bookingData.startDate || !bookingData.endDate || bookingLoading}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {bookingLoading ? "Creating..." : "Confirm Booking"}
-              </button>
-            </div>
-          </div>
+            </Card.Content>
+          </Card>
         </div>
-      )}
+      </div>
     </div>
   );
 };

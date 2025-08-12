@@ -1,778 +1,555 @@
-const mongoose = require('mongoose');
-const Order = require('../models/order.model');
-const Reservation = require('../models/reservation.model');
-const Listing = require('../models/listing.model');
-const User = require('../models/user.model');
+const Order = require('../models/Order');
+const Reservation = require('../models/Reservation');
+const Payment = require('../models/Payment');
+const User = require('../models/User');
+const Listing = require('../models/Listing');
 const ReservationService = require('../services/reservation.service');
-const RazorpayService = require('../services/razorpay.service');
+const PolarService = require('../services/polar.service');
+const emailService = require('../services/email.service');
+const { AppError } = require('../utils/errors');
 const logger = require('../utils/logger');
-const { validationResult } = require('express-validator');
+const mongoose = require('mongoose');
 
 /**
- * Order Controller for P2P Marketplace
- * Handles order creation, payment processing, and order management
+ * Create new order with reservations
  */
-class OrderController {
-  /**
-   * Create a new order with reservations
-   */
-  static async createOrder(req, res) {
+const createOrder = async (req, res, next) => {
+  try {
+    const { lines, paymentOption = 'deposit' } = req.body;
+    const renterId = req.user.id;
+
+    if (!lines || !Array.isArray(lines) || lines.length === 0) {
+      return next(new AppError('Order lines are required', 400));
+    }
+
+    // Validate each line
+    for (const line of lines) {
+      if (!line.listingId || !line.start || !line.end || !line.qty) {
+        return next(new AppError('Invalid order line: listingId, start, end, and qty are required', 400));
+      }
+
+      if (new Date(line.start) >= new Date(line.end)) {
+        return next(new AppError('End date must be after start date', 400));
+      }
+
+      if (line.qty <= 0) {
+        return next(new AppError('Quantity must be greater than 0', 400));
+      }
+    }
+
+    // Start transaction
+    const session = await mongoose.startSession();
+    let order;
+
     try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({
-          success: false,
-          message: 'Validation error',
-          errors: errors.array()
-        });
-      }
-      
-      const userId = req.user.id;
-      const { lineItems, paymentMode = 'razorpay', customer, metadata = {} } = req.body;
-      
-      if (!lineItems || lineItems.length === 0) {
-        return res.status(400).json({
-          success: false,
-          message: 'At least one line item is required'
-        });
-      }
-      
-      // Validate all line items belong to the same lender (for now)
-      const lenderIds = new Set();
-      for (const item of lineItems) {
-        const listing = await Listing.findById(item.listingId);
-        if (!listing) {
-          return res.status(400).json({
-            success: false,
-            message: `Listing not found: ${item.listingId}`
-          });
-        }
-        lenderIds.add(listing.ownerId.toString());
-      }
-      
-      if (lenderIds.size > 1) {
-        return res.status(400).json({
-          success: false,
-          message: 'Currently, orders can only contain items from a single lender'
-        });
-      }
-      
-      // Get customer and lender details
-      const customerUser = await User.findById(userId);
-      const lenderId = Array.from(lenderIds)[0];
-      const lenderUser = await User.findById(lenderId);
-      
-      const orderData = {
-        customerId: userId,
-        lenderId,
-        lineItems,
-        paymentMode,
-        customer: {
-          name: customer?.name || customerUser.name,
-          email: customer?.email || customerUser.email,
-          phone: customer?.phone || '',
-          ...customer
-        },
-        lender: {
-          name: lenderUser.name,
-          email: lenderUser.email,
-          phone: lenderUser.profile?.phone || '',
-          businessName: lenderUser.profile?.displayName
-        },
-        metadata: {
-          ipAddress: req.ip,
-          userAgent: req.get('User-Agent'),
-          source: 'web',
-          ...metadata
+      await session.withTransaction(async () => {
+        // Create order using reservation service
+        order = await ReservationService.createOrderAndReserve({
+          renterId,
+          lines,
+          paymentOption
+        }, session);
+      });
+
+      logger.info(`Created order ${order._id}`, {
+        userId: renterId,
+        lines: lines.length,
+        totalAmount: order.totalAmount
+      });
+
+      // Populate order for response
+      const populatedOrder = await Order.findById(order._id)
+        .populate('lines.listingId', 'title images basePrice ownerId')
+        .populate('hostId', 'name hostProfile')
+        .populate('renterId', 'name email');
+
+      // Send emails asynchronously (non-blocking)
+      const sendEmails = async () => {
+        try {
+          // Send booking confirmation to customer
+          await emailService.sendBookingConfirmation(populatedOrder, populatedOrder.renterId);
+          
+          // Send booking notification to host
+          await emailService.sendBookingNotificationToHost(
+            populatedOrder, 
+            populatedOrder.hostId, 
+            populatedOrder.renterId
+          );
+        } catch (error) {
+          logger.error('Failed to send order emails:', error);
         }
       };
-      
-      // Create order and reservations atomically
-      const result = await ReservationService.createOrderAndReserve(orderData);
-      
-      if (!result.success) {
-        return res.status(400).json({
-          success: false,
-          message: result.message || 'Order creation failed'
-        });
-      }
-      
-      const { order, reservations, totalAmount } = result;
-      
-      // Create payment order if not cash payment
-      let paymentOrder = null;
-      if (paymentMode !== 'cash') {
-        try {
-          paymentOrder = await RazorpayService.createOrder({
-            orderId: order._id,
-            amount: totalAmount,
-            currency: 'INR',
-            receipt: order.orderNumber,
-            notes: {
-              customer_id: userId,
-              lender_id: lenderId,
-              order_number: order.orderNumber
-            }
-          });
-        } catch (paymentError) {
-          logger.error('Payment order creation failed', {
-            orderId: order._id,
-            error: paymentError.message
-          });
-          
-          // Don't fail the entire order, user can retry payment
-          paymentOrder = {
-            success: false,
-            error: paymentError.message
-          };
-        }
-      }
-      
-      logger.info('Order created successfully', {
-        orderId: order._id,
-        orderNumber: order.orderNumber,
-        customerId: userId,
-        lenderId,
-        totalAmount,
-        reservationCount: reservations.length
-      });
-      
+      sendEmails();
+
       res.status(201).json({
         success: true,
-        message: 'Order created successfully',
-        data: {
-          order,
-          reservations,
-          paymentOrder: paymentOrder?.success ? paymentOrder : null,
-          nextStep: paymentMode === 'cash' ? 'confirmation' : 'payment'
-        }
+        data: { order: populatedOrder }
       });
-      
-    } catch (error) {
-      logger.error('Order creation failed', {
-        error: error.message,
-        stack: error.stack,
-        userId: req.user?.id,
-        body: JSON.stringify(req.body)
-      });
-      
-      // Enhanced error details for debugging
-      const isDevelopment = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV || process.env.TESTING_MODE === 'true';
-      const errorDetails = {
-        success: false,
-        message: 'Failed to create order',
-        error: isDevelopment ? (error.message || error.toString()) : 'Internal server error',
-        // Temporary: Show full error details in development/testing
-        ...(isDevelopment && {
-          fullError: error.message,
-          stack: error.stack,
-          nodeEnv: process.env.NODE_ENV,
-          testingMode: process.env.TESTING_MODE
-        })
-      };
-      
-      // Add additional debug info in development
-      if (isDevelopment) {
-        errorDetails.debug = {
-          nodeEnv: process.env.NODE_ENV,
-          errorType: error.constructor.name,
-          errorStack: error.stack?.split('\n').slice(0, 5), // First 5 lines of stack
-          timestamp: new Date().toISOString()
-        };
-      }
-      
-      res.status(500).json(errorDetails);
-    }
-  }
-  
-  /**
-   * Process payment for an order
-   */
-  static async processPayment(req, res) {
-    try {
-      const { id } = req.params;
-      const { razorpay_order_id, razorpay_payment_id, razorpay_signature, mock_payment_id } = req.body;
-      
-      if (!mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid order ID'
-        });
-      }
-      
-      const order = await Order.findById(id);
-      
-      if (!order) {
-        return res.status(404).json({
-          success: false,
-          message: 'Order not found'
-        });
-      }
-      
-      // Verify user owns this order
-      if (order.customerId.toString() !== req.user.id) {
-        return res.status(403).json({
-          success: false,
-          message: 'Not authorized to process payment for this order'
-        });
-      }
-      
-      if (order.payment.status === 'completed') {
-        return res.status(400).json({
-          success: false,
-          message: 'Payment already completed for this order'
-        });
-      }
-      
-      // Process payment
-      const paymentData = {
-        razorpay_order_id,
-        razorpay_payment_id,
-        razorpay_signature,
-        mock_payment_id,
-        ipAddress: req.ip,
-        userAgent: req.get('User-Agent')
-      };
-      
-      const result = await RazorpayService.processSuccessfulPayment(paymentData, id);
-      
-      if (!result.success) {
-        return res.status(400).json({
-          success: false,
-          message: result.message || 'Payment processing failed'
-        });
-      }
-      
-      res.json({
-        success: true,
-        message: 'Payment processed successfully',
-        data: {
-          order: result.order,
-          payment: result.payment,
-          reservations: await Reservation.find({ orderId: id })
-        }
-      });
-      
-    } catch (error) {
-      logger.error('Payment processing failed', {
-        error: error.message,
-        orderId: req.params.id,
-        userId: req.user?.id
-      });
-      
-      res.status(500).json({
-        success: false,
-        message: 'Failed to process payment',
-        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-      });
-    }
-  }
-  
-  /**
-   * Get order by ID
-   */
-  static async getOrderById(req, res) {
-    try {
-      const { id } = req.params;
-      
-      if (!mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid order ID'
-        });
-      }
-      
-      const order = await Order.findById(id)
-        .populate('customerId', 'name email phone')
-        .populate('lenderId', 'name email profile')
-        .populate('lineItems.listingId', 'title images category location ownerId')
-        .populate('lineItems.reservationId');
-      
-      if (!order) {
-        return res.status(404).json({
-          success: false,
-          message: 'Order not found'
-        });
-      }
-      
-      // Check authorization
-      const userId = req.user.id;
-      const userRole = req.user.role;
-      const isOwner = order.customerId._id.toString() === userId;
-      const isHost = order.hostId._id.toString() === userId;
-      const isAdmin = userRole === 'admin';
-      
-      if (!isOwner && !isHost && !isAdmin) {
-        return res.status(403).json({
-          success: false,
-          message: 'Not authorized to view this order'
-        });
-      }
-      
-      res.json({
-        success: true,
-        data: order
-      });
-      
-    } catch (error) {
-      logger.error('Get order by ID failed', {
-        error: error.message,
-        orderId: req.params.id,
-        userId: req.user?.id
-      });
-      
-      res.status(500).json({
-        success: false,
-        message: 'Failed to fetch order',
-        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-      });
-    }
-  }
-  
-  /**
-   * Get orders for current user
-   */
-  static async getUserOrders(req, res) {
-    try {
-      const userId = req.user.id;
-      const { page = 1, limit = 10, status, type = 'all' } = req.query;
-      
-      const skip = (page - 1) * limit;
-      let query = {};
-      
-      // Determine query based on user type
-      switch (type) {
-        case 'customer':
-          query.customerId = mongoose.Types.ObjectId(userId);
-          break;
-        case 'host':
-          query.hostId = mongoose.Types.ObjectId(userId);
-          break;
-        default:
-          query.$or = [
-            { customerId: mongoose.Types.ObjectId(userId) },
-            { hostId: mongoose.Types.ObjectId(userId) }
-          ];
-      }
-      
-      if (status && status !== 'all') {
-        query.status = status;
-      }
-      
-      const [orders, totalCount] = await Promise.all([
-        Order.find(query)
-          .populate('customerId', 'name email')
-          .populate('hostId', 'name email hostProfile.displayName')
-          .populate('lineItems.listingId', 'title images category')
-          .sort({ createdAt: -1 })
-          .skip(skip)
-          .limit(parseInt(limit))
-          .lean(),
-        Order.countDocuments(query)
-      ]);
-      
-      const totalPages = Math.ceil(totalCount / limit);
-      
-      res.json({
-        success: true,
-        data: {
-          orders,
-          pagination: {
-            currentPage: parseInt(page),
-            totalPages,
-            totalOrders: totalCount,
-            hasNext: page < totalPages,
-            hasPrev: page > 1
-          }
-        }
-      });
-      
-    } catch (error) {
-      logger.error('Get user orders failed', {
-        error: error.message,
-        userId: req.user?.id
-      });
-      
-      res.status(500).json({
-        success: false,
-        message: 'Failed to fetch orders',
-        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-      });
-    }
-  }
-  
-  /**
-   * Update order status (host/admin only)
-   */
-  static async updateOrderStatus(req, res) {
-    try {
-      const { id } = req.params;
-      const { status, notes = '' } = req.body;
-      
-      if (!mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid order ID'
-        });
-      }
-      
-      const order = await Order.findById(id);
-      
-      if (!order) {
-        return res.status(404).json({
-          success: false,
-          message: 'Order not found'
-        });
-      }
-      
-      // Check authorization
-      const userId = req.user.id;
-      const userRole = req.user.role;
-      const isHost = order.hostId.toString() === userId;
-      const isAdmin = userRole === 'admin';
-      
-      if (!isHost && !isAdmin) {
-        return res.status(403).json({
-          success: false,
-          message: 'Not authorized to update this order'
-        });
-      }
-      
-      // Validate status transition
-      const validTransitions = {
-        'confirmed': ['in_progress', 'cancelled'],
-        'in_progress': ['completed', 'disputed'],
-        'completed': ['disputed'],
-        'cancelled': [],
-        'disputed': ['completed', 'cancelled']
-      };
-      
-      if (!validTransitions[order.status]?.includes(status)) {
-        return res.status(400).json({
-          success: false,
-          message: `Invalid status transition from ${order.status} to ${status}`
-        });
-      }
-      
-      // Update order status
-      await order.updateStatus(status, notes);
-      
-      // Update related reservations
-      if (status === 'in_progress') {
-        await Reservation.updateMany(
-          { orderId: order._id },
-          { 
-            $set: { 
-              status: 'picked_up',
-              'timeline.pickedUpAt': new Date()
-            }
-          }
-        );
-      } else if (status === 'completed') {
-        await Reservation.updateMany(
-          { orderId: order._id },
-          { 
-            $set: { 
-              status: 'completed',
-              'timeline.returnedAt': new Date(),
-              'timeline.completedAt': new Date()
-            }
-          }
-        );
-      }
-      
-      logger.info('Order status updated', {
-        orderId: id,
-        oldStatus: order.status,
-        newStatus: status,
-        updatedBy: userId
-      });
-      
-      res.json({
-        success: true,
-        message: `Order status updated to ${status}`,
-        data: await Order.findById(id)
-          .populate('customerId', 'name email')
-          .populate('hostId', 'name email hostProfile')
-      });
-      
-    } catch (error) {
-      logger.error('Update order status failed', {
-        error: error.message,
-        orderId: req.params.id,
-        userId: req.user?.id
-      });
-      
-      res.status(500).json({
-        success: false,
-        message: 'Failed to update order status',
-        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-      });
-    }
-  }
-  
-  /**
-   * Cancel order
-   */
-  static async cancelOrder(req, res) {
-    try {
-      const { id } = req.params;
-      const { reason = 'Cancelled by customer' } = req.body;
-      
-      if (!mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid order ID'
-        });
-      }
-      
-      const order = await Order.findById(id);
-      
-      if (!order) {
-        return res.status(404).json({
-          success: false,
-          message: 'Order not found'
-        });
-      }
-      
-      // Check authorization
-      const userId = req.user.id;
-      const userRole = req.user.role;
-      const isCustomer = order.customerId.toString() === userId;
-      const isHost = order.hostId.toString() === userId;
-      const isAdmin = userRole === 'admin';
-      
-      if (!isCustomer && !isHost && !isAdmin) {
-        return res.status(403).json({
-          success: false,
-          message: 'Not authorized to cancel this order'
-        });
-      }
-      
-      if (!order.canCancel) {
-        return res.status(400).json({
-          success: false,
-          message: 'Order cannot be cancelled in current status'
-        });
-      }
-      
-      // Calculate cancellation charges and refund
-      const cancellationCharges = this.calculateCancellationCharges(order);
-      const refundAmount = order.pricing.paidAmount - cancellationCharges;
-      
-      // Update order
-      order.status = 'cancelled';
-      order.cancellation = {
-        reason,
-        cancelledBy: isCustomer ? 'customer' : (isHost ? 'host' : 'admin'),
-        cancellationFee: cancellationCharges,
-        refundAmount
-      };
-      
-      await order.save();
-      
-      // Cancel all reservations
-      const reservations = await Reservation.find({ orderId: id });
-      
-      for (const reservation of reservations) {
-        await ReservationService.cancelReservation(
-          reservation._id,
-          userId,
-          reason,
-          isAdmin
-        );
-      }
-      
-      // Process refund if applicable
-      if (refundAmount > 0 && order.payment.status === 'completed') {
-        try {
-          await RazorpayService.createRefund(
-            order.payment.razorpayPaymentId,
-            refundAmount,
-            reason
-          );
-        } catch (refundError) {
-          logger.error('Refund processing failed', {
-            orderId: id,
-            refundAmount,
-            error: refundError.message
-          });
-        }
-      }
-      
-      logger.info('Order cancelled successfully', {
-        orderId: id,
-        reason,
-        cancelledBy: order.cancellation.cancelledBy,
-        refundAmount
-      });
-      
-      res.json({
-        success: true,
-        message: 'Order cancelled successfully',
-        data: {
-          order,
-          cancellationCharges,
-          refundAmount
-        }
-      });
-      
-    } catch (error) {
-      logger.error('Cancel order failed', {
-        error: error.message,
-        orderId: req.params.id,
-        userId: req.user?.id
-      });
-      
-      res.status(500).json({
-        success: false,
-        message: 'Failed to cancel order',
-        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-      });
-    }
-  }
-  
-  /**
-   * Add review to order
-   */
-  static async addReview(req, res) {
-    try {
-      const { id } = req.params;
-      const { rating, review } = req.body;
-      
-      if (!mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid order ID'
-        });
-      }
-      
-      if (!rating || rating < 1 || rating > 5) {
-        return res.status(400).json({
-          success: false,
-          message: 'Rating must be between 1 and 5'
-        });
-      }
-      
-      const order = await Order.findById(id);
-      
-      if (!order) {
-        return res.status(404).json({
-          success: false,
-          message: 'Order not found'
-        });
-      }
-      
-      if (!order.canReview(req.user.id)) {
-        return res.status(403).json({
-          success: false,
-          message: 'Not authorized to review this order or order not completed'
-        });
-      }
-      
-      await order.addReview(req.user.id, rating, review);
-      
-      // Update host rating if customer reviewed
-      if (order.customerId.toString() === req.user.id) {
-        const host = await User.findById(order.hostId);
-        if (host) {
-          await host.updateHostRating(rating);
-        }
-        
-        // Update listing ratings
-        for (const lineItem of order.lineItems) {
-          const listing = await Listing.findById(lineItem.listingId);
-          if (listing) {
-            await listing.updateRating(rating);
-          }
-        }
-      }
-      
-      logger.info('Review added successfully', {
-        orderId: id,
-        reviewerId: req.user.id,
-        rating
-      });
-      
-      res.json({
-        success: true,
-        message: 'Review added successfully',
-        data: order
-      });
-      
-    } catch (error) {
-      logger.error('Add review failed', {
-        error: error.message,
-        orderId: req.params.id,
-        userId: req.user?.id
-      });
-      
-      res.status(500).json({
-        success: false,
-        message: 'Failed to add review',
-        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-      });
-    }
-  }
-  
-  /**
-   * Get order statistics
-   */
-  static async getOrderStats(req, res) {
-    try {
-      const userId = req.user.id;
-      const { period = '30' } = req.query; // days
-      
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - parseInt(period));
-      
-      const stats = await Order.getOrderStats(userId, {
-        start: startDate,
-        end: new Date()
-      });
-      
-      res.json({
-        success: true,
-        data: stats[0] || {
-          totalOrders: 0,
-          totalRevenue: 0,
-          avgOrderValue: 0,
-          completedOrders: 0,
-          cancelledOrders: 0
-        }
-      });
-      
-    } catch (error) {
-      logger.error('Get order stats failed', {
-        error: error.message,
-        userId: req.user?.id
-      });
-      
-      res.status(500).json({
-        success: false,
-        message: 'Failed to fetch order statistics',
-        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-      });
-    }
-  }
-  
-  /**
-   * Calculate cancellation charges based on policy
-   */
-  static calculateCancellationCharges(order) {
-    const now = new Date();
-    const orderDate = order.createdAt;
-    const hoursFromBooking = (now - orderDate) / (1000 * 60 * 60);
-    
-    // Default cancellation policy
-    if (hoursFromBooking <= 1) {
-      return 0; // Free cancellation within 1 hour
-    } else if (hoursFromBooking <= 24) {
-      return order.pricing.totalAmount * 0.1; // 10% charge
-    } else {
-      return order.pricing.totalAmount * 0.25; // 25% charge
-    }
-  }
-}
 
-module.exports = OrderController;
+    } finally {
+      await session.endSession();
+    }
+  } catch (error) {
+    logger.error('Error creating order:', error);
+    next(error);
+  }
+};
+
+/**
+ * Get order by ID
+ */
+const getOrder = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return next(new AppError('Invalid order ID', 400));
+    }
+
+    const order = await Order.findById(id)
+      .populate('lines.listingId', 'title images basePrice ownerId')
+      .populate('hostId', 'name email hostProfile')
+      .populate('renterId', 'name email');
+
+    if (!order) {
+      return next(new AppError('Order not found', 404));
+    }
+
+    // Check access permissions
+    const isOwner = req.user.id === order.renterId._id.toString();
+    const isHost = req.user.id === order.hostId._id.toString();
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isOwner && !isHost && !isAdmin) {
+      return next(new AppError('Not authorized to view this order', 403));
+    }
+
+    // Get related reservations
+    const reservations = await Reservation.find({ orderId: id })
+      .populate('listingId', 'title images');
+
+    // Get payment history
+    const payments = await Payment.find({ orderId: id })
+      .sort({ createdAt: -1 });
+
+    logger.info(`Fetched order ${id}`, { userId: req.user.id });
+
+    res.json({
+      success: true,
+      data: {
+        order,
+        reservations,
+        payments
+      }
+    });
+  } catch (error) {
+    logger.error('Error fetching order:', error);
+    next(error);
+  }
+};
+
+/**
+ * Get orders for user (renter or host)
+ */
+const getUserOrders = async (req, res, next) => {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      status,
+      role = 'renter' // 'renter' or 'host'
+    } = req.query;
+
+    const query = {};
+    
+    if (role === 'host') {
+      query.hostId = req.user.id;
+    } else {
+      query.renterId = req.user.id;
+    }
+
+    if (status) {
+      query.orderStatus = status;
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const orders = await Order.find(query)
+      .populate('lines.listingId', 'title images basePrice')
+      .populate('hostId', 'name hostProfile.displayName')
+      .populate('renterId', 'name')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const total = await Order.countDocuments(query);
+    const totalPages = Math.ceil(total / parseInt(limit));
+
+    logger.info(`Fetched ${orders.length} orders for user`, {
+      userId: req.user.id,
+      role,
+      status
+    });
+
+    res.json({
+      success: true,
+      data: {
+        orders,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          totalPages,
+          hasNext: parseInt(page) < totalPages,
+          hasPrev: parseInt(page) > 1
+        }
+      }
+    });
+  } catch (error) {
+    logger.error('Error fetching user orders:', error);
+    next(error);
+  }
+};
+
+/**
+ * Initiate payment for order
+ */
+const initiatePayment = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { paymentMethod = 'polar' } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return next(new AppError('Invalid order ID', 400));
+    }
+
+    const order = await Order.findById(id).populate('renterId', 'name email');
+    
+    if (!order) {
+      return next(new AppError('Order not found', 404));
+    }
+
+    // Check if user is the renter
+    if (order.renterId._id.toString() !== req.user.id) {
+      return next(new AppError('Not authorized to pay for this order', 403));
+    }
+
+    // Check if order is in correct state
+    if (order.paymentStatus !== 'pending') {
+      return next(new AppError('Order payment is not pending', 400));
+    }
+
+    if (order.orderStatus !== 'quote') {
+      return next(new AppError('Order is not in quote status', 400));
+    }
+
+    // Create checkout session
+    const checkoutData = await PolarService.createCheckoutSession({
+      orderId: order._id.toString(),
+      customerId: req.user.id,
+      customerEmail: order.renterId.email,
+      listingId: order.lines[0]?.listingId,
+      productName: `Order ${order._id}`,
+      total: order.totalAmount
+    });
+
+    // Update order with session ID
+    order.polarSessionId = checkoutData.id;
+    await order.save();
+
+    // Create payment record
+    const payment = new Payment({
+      orderId: order._id,
+      amount: order.totalAmount,
+      method: paymentMethod,
+      polarSessionId: checkoutData.id,
+      status: 'initiated'
+    });
+    await payment.save();
+
+    logger.info(`Initiated payment for order ${id}`, {
+      userId: req.user.id,
+      amount: order.totalAmount,
+      sessionId: checkoutData.id
+    });
+
+    res.json({
+      success: true,
+      data: {
+        paymentId: payment._id,
+        sessionId: checkoutData.id,
+        checkoutUrl: checkoutData.url,
+        amount: order.totalAmount,
+        currency: checkoutData.currency
+      }
+    });
+  } catch (error) {
+    logger.error('Error initiating payment:', error);
+    next(error);
+  }
+};
+
+/**
+ * Confirm payment (called after successful Polar payment)
+ */
+const confirmPayment = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { sessionId } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return next(new AppError('Invalid order ID', 400));
+    }
+
+    const order = await Order.findById(id);
+    if (!order) {
+      return next(new AppError('Order not found', 404));
+    }
+
+    // Check if user is the renter
+    if (order.renterId.toString() !== req.user.id) {
+      return next(new AppError('Not authorized to confirm payment for this order', 403));
+    }
+
+    // Verify payment with Polar
+    const sessionData = await PolarService.verifyCheckoutSession(sessionId);
+
+    if (!sessionData || sessionData.status !== 'completed') {
+      return next(new AppError('Payment verification failed', 400));
+    }
+
+    // Start transaction to update order and payment
+    const session = await mongoose.startSession();
+    
+    try {
+      await session.withTransaction(async () => {
+        // Update order status
+        order.paymentStatus = 'paid';
+        order.orderStatus = 'confirmed';
+        await order.save({ session });
+
+        // Update payment record
+        const payment = await Payment.findOne({ 
+          orderId: id, 
+          polarSessionId: sessionId 
+        }).session(session);
+        
+        if (payment) {
+          payment.status = 'success';
+          payment.polarPaymentId = sessionData.id;
+          payment.raw = sessionData;
+          await payment.save({ session });
+        }
+
+        // Update host wallet balance
+        const host = await User.findById(order.hostId).session(session);
+        if (host) {
+          const hostEarnings = order.subtotal - order.platformCommission;
+          host.walletBalance += hostEarnings;
+          await host.save({ session });
+        }
+
+        // Update reservation statuses
+        await Reservation.updateMany(
+          { orderId: id },
+          { status: 'reserved' },
+          { session }
+        );
+      });
+
+      logger.info(`Payment confirmed for order ${id}`, {
+        userId: req.user.id,
+        sessionId,
+        amount: order.totalAmount
+      });
+
+      res.json({
+        success: true,
+        message: 'Payment confirmed successfully',
+        data: { order }
+      });
+
+    } finally {
+      await session.endSession();
+    }
+  } catch (error) {
+    logger.error('Error confirming payment:', error);
+    next(error);
+  }
+};
+
+/**
+ * Update order status (host/admin actions)
+ */
+const updateOrderStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status, notes, metadata } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return next(new AppError('Invalid order ID', 400));
+    }
+
+    const order = await Order.findById(id);
+    if (!order) {
+      return next(new AppError('Order not found', 404));
+    }
+
+    // Check permissions
+    const isHost = req.user.id === order.hostId.toString();
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isHost && !isAdmin) {
+      return next(new AppError('Not authorized to update this order', 403));
+    }
+
+    // Validate status transitions
+    const validTransitions = {
+      'quote': ['confirmed', 'cancelled'],
+      'confirmed': ['in_progress', 'cancelled'],
+      'in_progress': ['completed', 'disputed'],
+      'disputed': ['completed', 'cancelled']
+    };
+
+    if (!validTransitions[order.orderStatus]?.includes(status)) {
+      return next(new AppError(`Invalid status transition from ${order.orderStatus} to ${status}`, 400));
+    }
+
+    // Update order
+    const previousStatus = order.orderStatus;
+    order.orderStatus = status;
+    if (notes) {
+      order.metadata = { 
+        ...order.metadata, 
+        statusNotes: notes,
+        lastUpdatedBy: req.user.id,
+        lastUpdatedAt: new Date()
+      };
+    }
+    if (metadata) {
+      order.metadata = { ...order.metadata, ...metadata };
+    }
+
+    await order.save();
+
+    // Update related reservations if needed
+    if (status === 'in_progress') {
+      await Reservation.updateMany(
+        { orderId: id },
+        { status: 'active' }
+      );
+    } else if (status === 'completed') {
+      await Reservation.updateMany(
+        { orderId: id },
+        { status: 'returned' }
+      );
+    }
+
+    // Populate order for email
+    const populatedOrder = await Order.findById(id)
+      .populate('renterId', 'name email')
+      .populate('hostId', 'name email');
+
+    // Send status update email (non-blocking)
+    emailService.sendOrderStatusUpdate(populatedOrder, populatedOrder.renterId, previousStatus)
+      .catch(error => {
+        logger.error('Failed to send order status update email:', error);
+      });
+
+    logger.info(`Updated order ${id} status to ${status}`, {
+      userId: req.user.id,
+      previousStatus: previousStatus
+    });
+
+    res.json({
+      success: true,
+      message: 'Order status updated successfully',
+      data: { order }
+    });
+  } catch (error) {
+    logger.error('Error updating order status:', error);
+    next(error);
+  }
+};
+
+/**
+ * Cancel order
+ */
+const cancelOrder = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return next(new AppError('Invalid order ID', 400));
+    }
+
+    const order = await Order.findById(id)
+      .populate('renterId', 'name email')
+      .populate('hostId', 'name email');
+
+    if (!order) {
+      return next(new AppError('Order not found', 404));
+    }
+
+    // Check permissions - only customer or admin can cancel
+    const isOwner = req.user.id === order.renterId._id.toString();
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isOwner && !isAdmin) {
+      return next(new AppError('Not authorized to cancel this order', 403));
+    }
+
+    // Check if order can be cancelled
+    if (['completed', 'cancelled'].includes(order.orderStatus)) {
+      return next(new AppError('Cannot cancel order with current status', 400));
+    }
+
+    // Update order status
+    order.orderStatus = 'cancelled';
+    order.metadata = {
+      ...order.metadata,
+      cancellationReason: reason,
+      cancelledBy: req.user.id,
+      cancelledAt: new Date()
+    };
+
+    await order.save();
+
+    // Update related reservations
+    await Reservation.updateMany(
+      { orderId: id },
+      { status: 'cancelled' }
+    );
+
+    // Send cancellation email (non-blocking)
+    emailService.sendCancellationConfirmation(order, order.renterId, reason)
+      .catch(error => {
+        logger.error('Failed to send cancellation email:', error);
+      });
+
+    logger.info(`Cancelled order ${id}`, {
+      userId: req.user.id,
+      reason: reason
+    });
+
+    res.json({
+      success: true,
+      message: 'Order cancelled successfully',
+      data: { order }
+    });
+  } catch (error) {
+    logger.error('Error cancelling order:', error);
+    next(error);
+  }
+};
+
+module.exports = {
+  createOrder,
+  getOrder,
+  getUserOrders,
+  initiatePayment,
+  confirmPayment,
+  cancelOrder,
+  updateOrderStatus
+};

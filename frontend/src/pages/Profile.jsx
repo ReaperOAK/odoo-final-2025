@@ -1,596 +1,707 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "../context/AuthContext";
-import {
-  UserIcon,
-  EnvelopeIcon,
-  LockClosedIcon,
-  CheckIcon,
-  EyeIcon,
-  EyeSlashIcon,
-  PencilIcon,
-  KeyIcon,
-  ShieldCheckIcon,
-  CogIcon,
-} from "@heroicons/react/24/outline";
+import { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { authAPI } from '../lib/api';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
 
-export default function Profile() {
-  const { user, updateProfile, changePassword } = useAuth();
-  const [activeTab, setActiveTab] = useState("profile");
+// Move components outside to prevent recreation on each render
+const ProfileHeader = ({ user }) => (
+  <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 mb-8 text-white relative overflow-hidden">
+    <div className="absolute inset-0 bg-black opacity-10"></div>
+    <div className="relative z-10 flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6">
+      <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center text-4xl font-bold backdrop-blur-sm">
+        {user?.name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || '?'}
+      </div>
+      <div className="text-center sm:text-left">
+        <h1 className="text-3xl font-bold mb-2">
+          {user?.name || user?.email || 'User'}
+        </h1>
+        <p className="text-blue-100 text-lg">
+          {user?.isHost ? '🏠 Host' : '👤 Member'} 
+          {user?.role === 'admin' && ' • 👑 Admin'}
+        </p>
+        <p className="text-blue-200 mt-1">
+          Member since {new Date(user?.createdAt || Date.now()).toLocaleDateString('en-US', { 
+            month: 'long', 
+            year: 'numeric' 
+          })}
+        </p>
+      </div>
+    </div>
+  </div>
+);
+
+const TabNavigation = ({ tabs, activeTab, setActiveTab }) => (
+  <div className="border-b border-gray-200 mb-8">
+    <nav className="-mb-px flex space-x-8 overflow-x-auto">
+      {tabs.map((tab) => (
+        <button
+          key={tab.id}
+          onClick={() => setActiveTab(tab.id)}
+          className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 transition-colors ${
+            activeTab === tab.id
+              ? 'border-blue-500 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+          }`}
+        >
+          <span className="text-lg">{tab.icon}</span>
+          <span>{tab.label}</span>
+        </button>
+      ))}
+    </nav>
+  </div>
+);
+
+const PersonalInfoTab = ({ personalInfo, setPersonalInfo, handlePersonalInfoSubmit, loading }) => (
+  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+    <div className="flex items-center space-x-3 mb-6">
+      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+        <span className="text-blue-600 text-xl">👤</span>
+      </div>
+      <div>
+        <h2 className="text-xl font-semibold text-gray-900">Personal Information</h2>
+        <p className="text-gray-600">Update your personal details and profile information</p>
+      </div>
+    </div>
+    
+    <form onSubmit={handlePersonalInfoSubmit} className="space-y-6">
+      <Input
+        label="Full Name"
+        value={personalInfo.name}
+        onChange={(e) => setPersonalInfo(prev => ({ ...prev, name: e.target.value }))}
+        placeholder="Enter your full name"
+        required
+      />
+      
+      <Input
+        label="Email Address"
+        type="email"
+        value={personalInfo.email}
+        onChange={(e) => setPersonalInfo(prev => ({ ...prev, email: e.target.value }))}
+        placeholder="Enter your email"
+        disabled
+        className="bg-gray-50 cursor-not-allowed"
+      />
+      
+      <Input
+        label="Phone Number"
+        type="tel"
+        value={personalInfo.phone}
+        onChange={(e) => setPersonalInfo(prev => ({ ...prev, phone: e.target.value }))}
+        placeholder="Enter your phone number"
+      />
+      
+      <Input
+        label="Address"
+        value={personalInfo.address}
+        onChange={(e) => setPersonalInfo(prev => ({ ...prev, address: e.target.value }))}
+        placeholder="Enter your address"
+      />
+      
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Bio</label>
+        <textarea
+          value={personalInfo.bio}
+          onChange={(e) => setPersonalInfo(prev => ({ ...prev, bio: e.target.value }))}
+          placeholder="Tell us about yourself..."
+          rows={4}
+          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+        />
+      </div>
+      
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex items-start space-x-2">
+          <span className="text-blue-500 mt-0.5">ℹ️</span>
+          <div>
+            <p className="text-sm text-blue-700 font-medium">Note about email changes</p>
+            <p className="text-sm text-blue-600 mt-1">
+              Email address cannot be changed for security reasons. If you need to change your email, please contact support.
+            </p>
+          </div>
+        </div>
+      </div>
+      
+      <div className="flex justify-end pt-4">
+        <Button type="submit" loading={loading} className="px-8">
+          Save Changes
+        </Button>
+      </div>
+    </form>
+  </div>
+);
+
+const SecurityTab = ({ passwordForm, setPasswordForm, handlePasswordSubmit, loading }) => (
+  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+    <div className="flex items-center space-x-3 mb-6">
+      <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+        <span className="text-green-600 text-xl">🔒</span>
+      </div>
+      <div>
+        <h2 className="text-xl font-semibold text-gray-900">Security Settings</h2>
+        <p className="text-gray-600">Manage your password and security preferences</p>
+      </div>
+    </div>
+    
+    <form onSubmit={handlePasswordSubmit} className="space-y-6">
+      <Input
+        label="Current Password"
+        type="password"
+        value={passwordForm.currentPassword}
+        onChange={(e) => setPasswordForm(prev => ({ ...prev, currentPassword: e.target.value }))}
+        placeholder="Enter your current password"
+        required
+      />
+      
+      <Input
+        label="New Password"
+        type="password"
+        value={passwordForm.newPassword}
+        onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
+        placeholder="Enter your new password"
+        required
+      />
+      
+      <Input
+        label="Confirm New Password"
+        type="password"
+        value={passwordForm.confirmPassword}
+        onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+        placeholder="Confirm your new password"
+        required
+      />
+      
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <h3 className="text-sm font-medium text-blue-900 mb-2">Password Requirements:</h3>
+        <ul className="text-sm text-blue-700 space-y-1">
+          <li className="flex items-center space-x-2">
+            <span className={passwordForm.newPassword.length >= 6 ? 'text-green-600' : 'text-gray-400'}>
+              {passwordForm.newPassword.length >= 6 ? '✓' : '○'}
+            </span>
+            <span>At least 6 characters long</span>
+          </li>
+          <li className="flex items-center space-x-2">
+            <span className={passwordForm.newPassword === passwordForm.confirmPassword && passwordForm.newPassword ? 'text-green-600' : 'text-gray-400'}>
+              {passwordForm.newPassword === passwordForm.confirmPassword && passwordForm.newPassword ? '✓' : '○'}
+            </span>
+            <span>Passwords match</span>
+          </li>
+        </ul>
+      </div>
+      
+      <div className="flex justify-end pt-4">
+        <Button type="submit" loading={loading} className="px-8">
+          Update Password
+        </Button>
+      </div>
+    </form>
+  </div>
+);
+
+const HostTab = ({ user, hostInfo, setHostInfo, handleBecomeHost, loading }) => (
+  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+    <div className="flex items-center space-x-3 mb-6">
+      <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+        <span className="text-purple-600 text-xl">🏠</span>
+      </div>
+      <div>
+        <h2 className="text-xl font-semibold text-gray-900">
+          {user?.isHost ? 'Host Settings' : 'Become a Host'}
+        </h2>
+        <p className="text-gray-600">
+          {user?.isHost 
+            ? 'Manage your host profile and business information'
+            : 'Start renting out your items and earn money'
+          }
+        </p>
+      </div>
+    </div>
+
+    {!user?.isHost && (
+      <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-6 mb-6">
+        <h3 className="text-lg font-semibold text-purple-900 mb-2">Why become a host?</h3>
+        <ul className="text-purple-700 space-y-2 mb-4">
+          <li className="flex items-center space-x-2">
+            <span className="text-green-600">✓</span>
+            <span>Earn money from your unused items</span>
+          </li>
+          <li className="flex items-center space-x-2">
+            <span className="text-green-600">✓</span>
+            <span>Help others in your community</span>
+          </li>
+          <li className="flex items-center space-x-2">
+            <span className="text-green-600">✓</span>
+            <span>Full control over your listings</span>
+          </li>
+          <li className="flex items-center space-x-2">
+            <span className="text-green-600">✓</span>
+            <span>Secure payments through our platform</span>
+          </li>
+        </ul>
+      </div>
+    )}
+
+    {user?.isHost && (
+      <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+        <div className="flex items-center space-x-2">
+          <span className="text-green-600 text-lg">✅</span>
+          <div>
+            <p className="text-green-800 font-medium">You are a verified host!</p>
+            <p className="text-green-700 text-sm">You can now create listings and start earning money.</p>
+          </div>
+        </div>
+      </div>
+    )}
+    
+    <div className="space-y-6">
+      <Input
+        label="Business/Display Name"
+        value={hostInfo.businessName}
+        onChange={(e) => setHostInfo(prev => ({ ...prev, businessName: e.target.value }))}
+        placeholder="Enter your business or display name"
+        required={!user?.isHost}
+      />
+      
+      <Input
+        label="Business Address"
+        value={hostInfo.businessAddress}
+        onChange={(e) => setHostInfo(prev => ({ ...prev, businessAddress: e.target.value }))}
+        placeholder="Enter your business address"
+      />
+      
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Business Description</label>
+        <textarea
+          value={hostInfo.description}
+          onChange={(e) => setHostInfo(prev => ({ ...prev, description: e.target.value }))}
+          placeholder="Describe your business and what you offer..."
+          rows={4}
+          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+        />
+      </div>
+
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex items-start space-x-2">
+          <span className="text-blue-500 mt-0.5">ℹ️</span>
+          <div>
+            <p className="text-sm text-blue-700 font-medium">Phone number required</p>
+            <p className="text-sm text-blue-600 mt-1">
+              Please ensure your phone number is updated in the Personal Info tab as it's required for host verification.
+            </p>
+          </div>
+        </div>
+      </div>
+      
+      <div className="flex justify-end pt-4">
+        <Button 
+          onClick={handleBecomeHost} 
+          loading={loading} 
+          className="px-8"
+        >
+          {user?.isHost ? 'Update Host Profile' : 'Become a Host'}
+        </Button>
+      </div>
+    </div>
+  </div>
+);
+
+const NotificationsTab = ({ notifications, setNotifications, handleNotificationsSave, loading }) => (
+  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+    <div className="flex items-center space-x-3 mb-6">
+      <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
+        <span className="text-yellow-600 text-xl">🔔</span>
+      </div>
+      <div>
+        <h2 className="text-xl font-semibold text-gray-900">Notification Preferences</h2>
+        <p className="text-gray-600">Choose how you want to be notified about activity</p>
+      </div>
+    </div>
+    
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Email Notifications</h3>
+        <div className="space-y-4">
+          {[
+            { key: 'emailBookings', label: 'Booking confirmations and updates', desc: 'Get notified when someone books your items or your bookings change' },
+            { key: 'emailMessages', label: 'Messages from hosts and renters', desc: 'Receive emails when you get new messages' },
+            { key: 'emailPromotions', label: 'Promotions and special offers', desc: 'Hear about discounts, new features, and special events' }
+          ].map((item) => (
+            <div key={item.key} className="flex items-start space-x-3">
+              <input
+                type="checkbox"
+                checked={notifications[item.key]}
+                onChange={(e) => setNotifications(prev => ({ ...prev, [item.key]: e.target.checked }))}
+                className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <div>
+                <label className="text-sm font-medium text-gray-900">{item.label}</label>
+                <p className="text-sm text-gray-600">{item.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      
+      <div>
+        <h3 className="text-lg font-medium text-gray-900 mb-4">SMS Notifications</h3>
+        <div className="space-y-4">
+          {[
+            { key: 'smsBookings', label: 'Booking reminders', desc: 'Get SMS reminders about upcoming pickups and returns' },
+            { key: 'smsReminders', label: 'Important reminders', desc: 'Receive SMS for time-sensitive notifications' }
+          ].map((item) => (
+            <div key={item.key} className="flex items-start space-x-3">
+              <input
+                type="checkbox"
+                checked={notifications[item.key]}
+                onChange={(e) => setNotifications(prev => ({ ...prev, [item.key]: e.target.checked }))}
+                className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <div>
+                <label className="text-sm font-medium text-gray-900">{item.label}</label>
+                <p className="text-sm text-gray-600">{item.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <div className="flex items-start space-x-2">
+          <span className="text-yellow-500 mt-0.5">⚠️</span>
+          <div>
+            <p className="text-sm text-yellow-700 font-medium">Coming Soon</p>
+            <p className="text-sm text-yellow-600 mt-1">
+              Notification preferences will be fully implemented in the next update. Your selections are saved locally for now.
+            </p>
+          </div>
+        </div>
+      </div>
+      
+      <div className="flex justify-end pt-4">
+        <Button onClick={handleNotificationsSave} loading={loading} className="px-8">
+          Save Preferences
+        </Button>
+      </div>
+    </div>
+  </div>
+);
+
+const AlertMessage = ({ success, error }) => {
+  if (!success && !error) return null;
   
-  // Profile form state
-  const [profileData, setProfileData] = useState({
-    name: "",
-    email: "",
-  });
-  const [profileLoading, setProfileLoading] = useState(false);
-  const [profileSuccess, setProfileSuccess] = useState("");
-  const [profileError, setProfileError] = useState("");
+  return (
+    <div className={`fixed top-4 right-4 max-w-md p-4 rounded-lg shadow-lg z-50 transition-all transform ${
+      success 
+        ? 'bg-green-50 border border-green-200 text-green-800' 
+        : 'bg-red-50 border border-red-200 text-red-800'
+    }`}>
+      <div className="flex items-center space-x-2">
+        <span className="text-lg">
+          {success ? '✅' : '❌'}
+        </span>
+        <p className="font-medium">{success || error}</p>
+      </div>
+    </div>
+  );
+};
 
-  // Password form state
-  const [passwordData, setPasswordData] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
+const Profile = () => {
+  const { user, updateUser } = useAuth();
+  const [activeTab, setActiveTab] = useState('personal');
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState('');
+  const [error, setError] = useState('');
+  
+  // Form states
+  const [personalInfo, setPersonalInfo] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    bio: '',
+    address: ''
   });
-  const [passwordLoading, setPasswordLoading] = useState(false);
-  const [passwordSuccess, setPasswordSuccess] = useState("");
-  const [passwordError, setPasswordError] = useState("");
-  const [showPasswords, setShowPasswords] = useState({
-    current: false,
-    new: false,
-    confirm: false,
+  
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  
+  const [hostInfo, setHostInfo] = useState({
+    businessName: '',
+    businessAddress: '',
+    description: ''
   });
 
-  // Initialize profile data when user loads
+  const [notifications, setNotifications] = useState({
+    emailBookings: true,
+    emailMessages: true,
+    emailPromotions: false,
+    smsBookings: true,
+    smsReminders: true
+  });
+
+  // Initialize form data
   useEffect(() => {
     if (user) {
-      setProfileData({
-        name: user.name || "",
-        email: user.email || "",
-      });
+      console.log('User data received:', user);
+      
+      const newPersonalInfo = {
+        name: user.name || '',
+        email: user.email || '',
+        phone: user.hostProfile?.phone || '',
+        bio: user.hostProfile?.bio || '',
+        address: user.hostProfile?.address || ''
+      };
+      
+      console.log('Setting personal info:', newPersonalInfo);
+      setPersonalInfo(newPersonalInfo);
+      
+      if (user.hostProfile) {
+        const newHostInfo = {
+          businessName: user.hostProfile.displayName || '',
+          businessAddress: user.hostProfile.address || '',
+          description: user.hostProfile.bio || ''
+        };
+        
+        console.log('Setting host info:', newHostInfo);
+        setHostInfo(newHostInfo);
+      }
     }
   }, [user]);
 
-  const handleProfileChange = (e) => {
-    setProfileData({
-      ...profileData,
-      [e.target.name]: e.target.value,
-    });
-  };
-
-  const handlePasswordChange = (e) => {
-    setPasswordData({
-      ...passwordData,
-      [e.target.name]: e.target.value,
-    });
-  };
-
-  const handleProfileSubmit = async (e) => {
-    e.preventDefault();
-    setProfileLoading(true);
-    setProfileError("");
-    setProfileSuccess("");
-
-    const result = await updateProfile(profileData);
-
-    if (result.success) {
-      setProfileSuccess("Profile updated successfully!");
-      setTimeout(() => setProfileSuccess(""), 3000);
+  const showMessage = (type, message) => {
+    if (type === 'success') {
+      setSuccess(message);
+      setError('');
     } else {
-      setProfileError(result.error);
+      setError(message);
+      setSuccess('');
     }
+    setTimeout(() => {
+      setSuccess('');
+      setError('');
+    }, 5000);
+  };
 
-    setProfileLoading(false);
+  const handlePersonalInfoSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    try {
+      // Prepare data according to backend schema
+      const updateData = {
+        name: personalInfo.name,
+        hostProfile: {
+          phone: personalInfo.phone,
+          bio: personalInfo.bio,
+          address: personalInfo.address
+        }
+      };
+      
+      console.log('Sending update data:', updateData);
+      
+      const response = await authAPI.updateProfile(updateData);
+      const updatedUser = response.data.data.user;
+      
+      console.log('Update response:', updatedUser);
+      
+      // Update the auth context
+      updateUser(updatedUser);
+      
+      // Update form data to reflect the server response
+      const newPersonalInfo = {
+        name: updatedUser.name || '',
+        email: updatedUser.email || '',
+        phone: updatedUser.hostProfile?.phone || '',
+        bio: updatedUser.hostProfile?.bio || '',
+        address: updatedUser.hostProfile?.address || ''
+      };
+      
+      console.log('Updating form with:', newPersonalInfo);
+      setPersonalInfo(newPersonalInfo);
+      
+      // Also update host info if it exists
+      if (updatedUser.hostProfile) {
+        setHostInfo({
+          businessName: updatedUser.hostProfile.displayName || '',
+          businessAddress: updatedUser.hostProfile.address || '',
+          description: updatedUser.hostProfile.bio || ''
+        });
+      }
+      
+      showMessage('success', 'Personal information updated successfully!');
+    } catch (err) {
+      showMessage('error', err.response?.data?.message || 'Failed to update profile');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handlePasswordSubmit = async (e) => {
     e.preventDefault();
-    setPasswordLoading(true);
-    setPasswordError("");
-    setPasswordSuccess("");
-
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setPasswordError("New passwords do not match");
-      setPasswordLoading(false);
+    
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      showMessage('error', 'New passwords do not match');
       return;
     }
-
-    if (passwordData.newPassword.length < 6) {
-      setPasswordError("New password must be at least 6 characters long");
-      setPasswordLoading(false);
+    
+    if (passwordForm.newPassword.length < 6) {
+      showMessage('error', 'Password must be at least 6 characters long');
       return;
     }
-
-    const result = await changePassword({
-      currentPassword: passwordData.currentPassword,
-      newPassword: passwordData.newPassword,
-    });
-
-    if (result.success) {
-      setPasswordSuccess("Password changed successfully!");
-      setPasswordData({
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
+    
+    setLoading(true);
+    
+    try {
+      await authAPI.changePassword({
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+        confirmPassword: passwordForm.confirmPassword
       });
-      setTimeout(() => setPasswordSuccess(""), 3000);
-    } else {
-      setPasswordError(result.error);
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      showMessage('success', 'Password changed successfully!');
+    } catch (err) {
+      showMessage('error', err.response?.data?.message || 'Failed to change password');
+    } finally {
+      setLoading(false);
     }
-
-    setPasswordLoading(false);
   };
 
-  const togglePasswordVisibility = (field) => {
-    setShowPasswords({
-      ...showPasswords,
-      [field]: !showPasswords[field],
-    });
+  const handleBecomeHost = async () => {
+    if (!hostInfo.businessName.trim()) {
+      showMessage('error', 'Business name is required');
+      return;
+    }
+    
+    setLoading(true);
+    
+    try {
+      let response;
+      
+      if (user?.isHost) {
+        // Update existing host profile
+        const updateData = {
+          name: personalInfo.name, // Keep the name as is
+          hostProfile: {
+            displayName: hostInfo.businessName,
+            address: hostInfo.businessAddress,
+            bio: hostInfo.description,
+            phone: personalInfo.phone
+          }
+        };
+        response = await authAPI.updateProfile(updateData);
+      } else {
+        // Become a new host
+        const requestData = {
+          hostProfile: {
+            displayName: hostInfo.businessName,
+            address: hostInfo.businessAddress,
+            bio: hostInfo.description,
+            phone: personalInfo.phone
+          }
+        };
+        response = await authAPI.becomeHost(requestData);
+      }
+      
+      const updatedUser = response.data.data.user;
+      
+      // Update the auth context
+      updateUser(updatedUser);
+      
+      // Update form data to reflect the server response
+      setPersonalInfo(prev => ({
+        ...prev,
+        phone: updatedUser.hostProfile?.phone || prev.phone,
+        bio: updatedUser.hostProfile?.bio || prev.bio,
+        address: updatedUser.hostProfile?.address || prev.address
+      }));
+      
+      // Update host info
+      setHostInfo({
+        businessName: updatedUser.hostProfile?.displayName || '',
+        businessAddress: updatedUser.hostProfile?.address || '',
+        description: updatedUser.hostProfile?.bio || ''
+      });
+      
+      showMessage('success', user?.isHost ? 'Host profile updated successfully!' : 'Congratulations! You are now a host!');
+    } catch (err) {
+      showMessage('error', err.response?.data?.message || 'Failed to update host profile');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const passwordRequirements = [
-    { label: "At least 6 characters", met: passwordData.newPassword.length >= 6 },
-    {
-      label: "Passwords match",
-      met:
-        passwordData.newPassword === passwordData.confirmPassword &&
-        passwordData.confirmPassword !== "",
-    },
+  const handleNotificationsSave = () => {
+    // Save to localStorage for now since backend doesn't support it yet
+    localStorage.setItem('notificationPreferences', JSON.stringify(notifications));
+    showMessage('success', 'Notification preferences saved locally!');
+  };
+
+  // Load notification preferences from localStorage on mount
+  useEffect(() => {
+    const savedPreferences = localStorage.getItem('notificationPreferences');
+    if (savedPreferences) {
+      try {
+        setNotifications(JSON.parse(savedPreferences));
+      } catch (e) {
+        console.warn('Failed to parse saved notification preferences');
+      }
+    }
+  }, []);
+
+  const tabs = [
+    { id: 'personal', label: 'Personal Info', icon: '👤' },
+    { id: 'security', label: 'Security', icon: '🔒' },
+    { id: 'host', label: user?.isHost ? 'Host Settings' : 'Become a Host', icon: '🏠' },
+    { id: 'notifications', label: 'Notifications', icon: '🔔' }
   ];
 
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
-        <div className="text-center bg-white rounded-2xl shadow-xl p-8 max-w-md w-full">
-          <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
-            <LockClosedIcon className="w-8 h-8 text-white" />
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            Authentication Required
-          </h2>
-          <p className="text-gray-600 mb-6">
-            Please log in to access your profile and account settings
-          </p>
-          <button
-            onClick={() => window.location.href = '/login'}
-            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-6 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 transform hover:scale-105"
-          >
-            Go to Login
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen bg-gray-50">
+      <AlertMessage success={success} error={error} />
+      
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Page Header */}
-        <div className="mb-8 text-center lg:text-left">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <h1 className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
-                Account Settings
-              </h1>
-              <p className="text-gray-600 text-lg">
-                Manage your account information and security preferences
-              </p>
-            </div>
-            <div className="mt-4 lg:mt-0">
-              <div className="inline-flex items-center px-4 py-2 bg-white rounded-full shadow-sm border border-gray-200">
-                <ShieldCheckIcon className="w-5 h-5 text-green-500 mr-2" />
-                <span className="text-sm font-medium text-gray-700">Secure Account</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* User Info Card */}
-        <div className="bg-white rounded-2xl shadow-xl p-6 lg:p-8 mb-8 border border-gray-100">
-          <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-6">
-            <div className="relative">
-              <div className="w-20 h-20 lg:w-24 lg:h-24 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
-                <UserIcon className="w-10 h-10 lg:w-12 lg:h-12 text-white" />
-              </div>
-              <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center border-4 border-white">
-                <CheckIcon className="w-4 h-4 text-white" />
-              </div>
-            </div>
-            <div className="flex-1 text-center sm:text-left">
-              <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-1">{user.name}</h2>
-              <p className="text-gray-600 text-lg mb-3">{user.email}</p>
-              <div className="flex flex-wrap justify-center sm:justify-start gap-2">
-                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                  user.role === 'admin' 
-                    ? 'bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 border border-purple-300' 
-                    : 'bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 border border-blue-300'
-                }`}>
-                  <CogIcon className="w-4 h-4 mr-1" />
-                  {user.role === 'admin' ? 'Administrator' : 'Customer'}
-                </span>
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gradient-to-r from-green-100 to-green-200 text-green-800 border border-green-300">
-                  <CheckIcon className="w-4 h-4 mr-1" />
-                  Verified Account
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Tabs Container */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-          {/* Tabs Navigation */}
-          <div className="border-b border-gray-200 bg-gray-50">
-            <nav className="flex flex-col sm:flex-row">
-              <button
-                onClick={() => setActiveTab("profile")}
-                className={`flex-1 py-4 px-6 text-center sm:text-left font-semibold text-sm transition-all duration-200 ${
-                  activeTab === "profile"
-                    ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-white"
-                }`}
-              >
-                <PencilIcon className="w-5 h-5 inline-block mr-2" />
-                Profile Information
-              </button>
-              <button
-                onClick={() => setActiveTab("password")}
-                className={`flex-1 py-4 px-6 text-center sm:text-left font-semibold text-sm transition-all duration-200 ${
-                  activeTab === "password"
-                    ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-white"
-                }`}
-              >
-                <KeyIcon className="w-5 h-5 inline-block mr-2" />
-                Security Settings
-              </button>
-            </nav>
-          </div>
-
-          {/* Tab Content */}
-          <div className="p-6 lg:p-8">
-            {activeTab === "profile" && (
-              <div className="max-w-2xl mx-auto">
-                <div className="text-center mb-8">
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                    Update Profile Information
-                  </h3>
-                  <p className="text-gray-600">
-                    Keep your account information up to date for the best experience
-                  </p>
-                </div>
-                
-                {profileSuccess && (
-                  <div className="mb-6 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4 transform transition-all duration-300">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                          <CheckIcon className="w-5 h-5 text-white" />
-                        </div>
-                      </div>
-                      <div className="ml-3">
-                        <p className="text-sm font-medium text-green-800">{profileSuccess}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {profileError && (
-                  <div className="mb-6 bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-xl p-4 transform transition-all duration-300">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center">
-                          <span className="text-white text-sm font-bold">!</span>
-                        </div>
-                      </div>
-                      <div className="ml-3">
-                        <p className="text-sm font-medium text-red-800">{profileError}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <form onSubmit={handleProfileSubmit} className="space-y-6">
-                  <div className="space-y-6">
-                    <div>
-                      <label
-                        htmlFor="name"
-                        className="block text-sm font-semibold text-gray-700 mb-2"
-                      >
-                        Full Name
-                      </label>
-                      <div className="relative group">
-                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                          <UserIcon className="h-5 w-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
-                        </div>
-                        <input
-                          id="name"
-                          name="name"
-                          type="text"
-                          required
-                          className="block w-full pl-12 pr-4 py-4 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white shadow-sm"
-                          placeholder="Enter your full name"
-                          value={profileData.name}
-                          onChange={handleProfileChange}
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor="email"
-                        className="block text-sm font-semibold text-gray-700 mb-2"
-                      >
-                        Email Address
-                      </label>
-                      <div className="relative group">
-                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                          <EnvelopeIcon className="h-5 w-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
-                        </div>
-                        <input
-                          id="email"
-                          name="email"
-                          type="email"
-                          required
-                          className="block w-full pl-12 pr-4 py-4 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white shadow-sm"
-                          placeholder="Enter your email address"
-                          value={profileData.email}
-                          onChange={handleProfileChange}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="pt-4">
-                    <button
-                      type="submit"
-                      disabled={profileLoading}
-                      className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 px-6 rounded-xl font-semibold hover:from-blue-700 hover:to-purple-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 disabled:transform-none shadow-lg"
-                    >
-                      {profileLoading ? (
-                        <div className="flex items-center justify-center">
-                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
-                          Updating Profile...
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-center">
-                          <CheckIcon className="w-5 h-5 mr-2" />
-                          Update Profile
-                        </div>
-                      )}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            )}
-
-            {activeTab === "password" && (
-              <div className="max-w-2xl mx-auto">
-                <div className="text-center mb-8">
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                    Change Password
-                  </h3>
-                  <p className="text-gray-600">
-                    Ensure your account is using a strong, unique password
-                  </p>
-                </div>
-                
-                {passwordSuccess && (
-                  <div className="mb-6 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4 transform transition-all duration-300">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                          <CheckIcon className="w-5 h-5 text-white" />
-                        </div>
-                      </div>
-                      <div className="ml-3">
-                        <p className="text-sm font-medium text-green-800">{passwordSuccess}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {passwordError && (
-                  <div className="mb-6 bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-xl p-4 transform transition-all duration-300">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center">
-                          <span className="text-white text-sm font-bold">!</span>
-                        </div>
-                      </div>
-                      <div className="ml-3">
-                        <p className="text-sm font-medium text-red-800">{passwordError}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <form onSubmit={handlePasswordSubmit} className="space-y-6">
-                  <div className="space-y-6">
-                    <div>
-                      <label
-                        htmlFor="currentPassword"
-                        className="block text-sm font-semibold text-gray-700 mb-2"
-                      >
-                        Current Password
-                      </label>
-                      <div className="relative group">
-                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                          <LockClosedIcon className="h-5 w-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
-                        </div>
-                        <input
-                          id="currentPassword"
-                          name="currentPassword"
-                          type={showPasswords.current ? "text" : "password"}
-                          required
-                          className="block w-full pl-12 pr-12 py-4 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white shadow-sm"
-                          placeholder="Enter your current password"
-                          value={passwordData.currentPassword}
-                          onChange={handlePasswordChange}
-                        />
-                        <div className="absolute inset-y-0 right-0 pr-4 flex items-center">
-                          <button
-                            type="button"
-                            className="text-gray-400 hover:text-gray-600 transition-colors"
-                            onClick={() => togglePasswordVisibility("current")}
-                          >
-                            {showPasswords.current ? (
-                              <EyeSlashIcon className="h-5 w-5" />
-                            ) : (
-                              <EyeIcon className="h-5 w-5" />
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor="newPassword"
-                        className="block text-sm font-semibold text-gray-700 mb-2"
-                      >
-                        New Password
-                      </label>
-                      <div className="relative group">
-                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                          <LockClosedIcon className="h-5 w-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
-                        </div>
-                        <input
-                          id="newPassword"
-                          name="newPassword"
-                          type={showPasswords.new ? "text" : "password"}
-                          required
-                          className="block w-full pl-12 pr-12 py-4 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white shadow-sm"
-                          placeholder="Enter your new password"
-                          value={passwordData.newPassword}
-                          onChange={handlePasswordChange}
-                        />
-                        <div className="absolute inset-y-0 right-0 pr-4 flex items-center">
-                          <button
-                            type="button"
-                            className="text-gray-400 hover:text-gray-600 transition-colors"
-                            onClick={() => togglePasswordVisibility("new")}
-                          >
-                            {showPasswords.new ? (
-                              <EyeSlashIcon className="h-5 w-5" />
-                            ) : (
-                              <EyeIcon className="h-5 w-5" />
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor="confirmPassword"
-                        className="block text-sm font-semibold text-gray-700 mb-2"
-                      >
-                        Confirm New Password
-                      </label>
-                      <div className="relative group">
-                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                          <LockClosedIcon className="h-5 w-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
-                        </div>
-                        <input
-                          id="confirmPassword"
-                          name="confirmPassword"
-                          type={showPasswords.confirm ? "text" : "password"}
-                          required
-                          className="block w-full pl-12 pr-12 py-4 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white shadow-sm"
-                          placeholder="Confirm your new password"
-                          value={passwordData.confirmPassword}
-                          onChange={handlePasswordChange}
-                        />
-                        <div className="absolute inset-y-0 right-0 pr-4 flex items-center">
-                          <button
-                            type="button"
-                            className="text-gray-400 hover:text-gray-600 transition-colors"
-                            onClick={() => togglePasswordVisibility("confirm")}
-                          >
-                            {showPasswords.confirm ? (
-                              <EyeSlashIcon className="h-5 w-5" />
-                            ) : (
-                              <EyeIcon className="h-5 w-5" />
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Password Requirements */}
-                  {(passwordData.newPassword || passwordData.confirmPassword) && (
-                    <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl p-6 border border-gray-200">
-                      <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                        <ShieldCheckIcon className="w-5 h-5 mr-2 text-blue-500" />
-                        Password Requirements
-                      </h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {passwordRequirements.map((req, index) => (
-                          <div key={index} className="flex items-center p-3 bg-white rounded-lg shadow-sm border border-gray-100">
-                            <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center mr-3 ${
-                              req.met ? "bg-green-500" : "bg-gray-300"
-                            }`}>
-                              <CheckIcon className="w-4 h-4 text-white" />
-                            </div>
-                            <span className={`text-sm font-medium ${
-                              req.met ? "text-green-700" : "text-gray-500"
-                            }`}>
-                              {req.label}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="pt-4">
-                    <button
-                      type="submit"
-                      disabled={
-                        passwordLoading || !passwordRequirements.every((req) => req.met)
-                      }
-                      className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 px-6 rounded-xl font-semibold hover:from-blue-700 hover:to-purple-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 disabled:transform-none shadow-lg"
-                    >
-                      {passwordLoading ? (
-                        <div className="flex items-center justify-center">
-                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
-                          Updating Password...
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-center">
-                          <KeyIcon className="w-5 h-5 mr-2" />
-                          Change Password
-                        </div>
-                      )}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Security Notice */}
-        <div className="mt-8 bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-6 border border-blue-200">
-          <div className="flex items-start space-x-4">
-            <div className="flex-shrink-0">
-              <ShieldCheckIcon className="w-8 h-8 text-blue-500" />
-            </div>
-            <div>
-              <h4 className="text-lg font-semibold text-gray-900 mb-2">
-                Your Account Security
-              </h4>
-              <p className="text-gray-600 text-sm leading-relaxed">
-                We take your security seriously. Your password is encrypted and we never store it in plain text. 
-                If you notice any suspicious activity on your account, please change your password immediately 
-                and contact our support team.
-              </p>
-            </div>
-          </div>
+        <ProfileHeader user={user} />
+        <TabNavigation tabs={tabs} activeTab={activeTab} setActiveTab={setActiveTab} />
+        
+        <div className="transition-all duration-300 ease-in-out">
+          {activeTab === 'personal' && (
+            <PersonalInfoTab 
+              personalInfo={personalInfo}
+              setPersonalInfo={setPersonalInfo}
+              handlePersonalInfoSubmit={handlePersonalInfoSubmit}
+              loading={loading}
+            />
+          )}
+          {activeTab === 'security' && (
+            <SecurityTab 
+              passwordForm={passwordForm}
+              setPasswordForm={setPasswordForm}
+              handlePasswordSubmit={handlePasswordSubmit}
+              loading={loading}
+            />
+          )}
+          {activeTab === 'host' && (
+            <HostTab 
+              user={user}
+              hostInfo={hostInfo}
+              setHostInfo={setHostInfo}
+              handleBecomeHost={handleBecomeHost}
+              loading={loading}
+            />
+          )}
+          {activeTab === 'notifications' && (
+            <NotificationsTab 
+              notifications={notifications}
+              setNotifications={setNotifications}
+              handleNotificationsSave={handleNotificationsSave}
+              loading={loading}
+            />
+          )}
         </div>
       </div>
     </div>
   );
-}
+};
+
+export default Profile;

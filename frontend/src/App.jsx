@@ -1,210 +1,76 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { Suspense, lazy } from "react";
-import { AuthProvider } from "./context/AuthContext";
-import ProtectedRoute from "./components/ProtectedRoute";
-import Header from "./components/Header";
-import Footer from "./components/Footer";
-import { Toaster } from "react-hot-toast";
+import { AuthProvider } from "./contexts/AuthContext";
+import { DataProvider } from "./contexts/DataContext";
+import Header from "./components/layout/Header";
 
-// Core Pages (load immediately)
+// Pages
 import Home from "./pages/Home";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-
-// Lazy loaded pages for better performance
-const Products = lazy(() => import("./pages/Products"));
-const ProductDetail = lazy(() => import("./pages/ProductDetail"));
-const Listings = lazy(() => import("./pages/Listings"));
-const ListingDetail = lazy(() => import("./pages/ListingDetail"));
-const CreateListing = lazy(() => import("./pages/CreateListing"));
-const BecomeHost = lazy(() => import("./pages/BecomeHost"));
-const HostDashboard = lazy(() => import("./pages/HostDashboard"));
-const MyListings = lazy(() => import("./pages/MyListings"));
-const HostProfile = lazy(() => import("./pages/HostProfile"));
-const MyBookings = lazy(() => import("./pages/MyBookings"));
-const Profile = lazy(() => import("./pages/Profile"));
-const AdminProducts = lazy(() => import("./pages/AdminProducts"));
-const AdminRentals = lazy(() => import("./pages/AdminRentals"));
-const AdminHosts = lazy(() => import("./pages/AdminHosts"));
-const AdminPayouts = lazy(() => import("./pages/AdminPayouts"));
-const APITester = lazy(() => import("./pages/APITester"));
-
-// Loading component
-const LoadingSpinner = () => (
-  <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-    <div className="flex flex-col items-center space-y-4">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand"></div>
-      <p className="text-gray-600 text-sm">Loading...</p>
-    </div>
-  </div>
-);
+import Login from "./pages/auth/Login";
+import Register from "./pages/auth/Register";
+import ListingDetail from "./pages/ListingDetail";
+import Checkout from "./pages/Checkout";
+import CheckoutSuccess from "./pages/CheckoutSuccess";
+import CheckoutCancel from "./pages/CheckoutCancel";
+import MockCheckout from "./pages/MockCheckout";
+import MyBookings from "./pages/MyBookings";
+import Profile from "./pages/Profile";
+import CreateListing from "./pages/CreateListing";
+import HostDashboard from "./pages/host/Dashboard";
+import AdminDashboard from "./pages/admin/Dashboard";
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <div className="min-h-screen bg-bg flex flex-col">
-          <Header />
-          <main className="flex-1">
-            <Suspense fallback={<LoadingSpinner />}>
+    <DataProvider>
+      <AuthProvider>
+        <Router>
+          <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100">
+            {/* Animated Background Elements */}
+            <div className="fixed inset-0 overflow-hidden pointer-events-none">
+              <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse"></div>
+              <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse animation-delay-2000"></div>
+              <div className="absolute top-40 left-1/2 w-60 h-60 bg-gradient-to-r from-green-400 to-blue-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse animation-delay-4000"></div>
+            </div>
+
+            <Header />
+            <main className="relative z-10">
               <Routes>
-                {/* Public Routes */}
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
-
-                {/* P2P Marketplace Routes */}
-                <Route path="/listings" element={<Listings />} />
                 <Route path="/listings/:id" element={<ListingDetail />} />
-
-                {/* Legacy Product Routes (redirect to listings) */}
-                <Route path="/products" element={<Listings />} />
-                <Route path="/products/:id" element={<ListingDetail />} />
-
-                {/* Protected User Routes */}
+                <Route path="/checkout/:orderId" element={<Checkout />} />
+                <Route path="/checkout/success" element={<CheckoutSuccess />} />
+                <Route path="/checkout/cancel" element={<CheckoutCancel />} />
+                <Route path="/checkout/mock" element={<MockCheckout />} />
+                <Route path="/my-bookings" element={<MyBookings />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/listings/new" element={<CreateListing />} />
+                <Route path="/host/dashboard" element={<HostDashboard />} />
+                <Route path="/admin/dashboard" element={<AdminDashboard />} />
                 <Route
-                  path="/my-bookings"
+                  path="*"
                   element={
-                    <ProtectedRoute>
-                      <MyBookings />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/profile"
-                  element={
-                    <ProtectedRoute>
-                      <Profile />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/become-host"
-                  element={
-                    <ProtectedRoute>
-                      <BecomeHost />
-                    </ProtectedRoute>
-                  }
-                />
-
-                {/* Host Routes */}
-                <Route
-                  path="/host/dashboard"
-                  element={
-                    <ProtectedRoute>
-                      <HostDashboard />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/host/profile"
-                  element={
-                    <ProtectedRoute>
-                      <HostProfile />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/my-listings"
-                  element={
-                    <ProtectedRoute>
-                      <MyListings />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/listings/create"
-                  element={
-                    <ProtectedRoute>
-                      <CreateListing />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/listings/:id/edit"
-                  element={
-                    <ProtectedRoute>
-                      <CreateListing />
-                    </ProtectedRoute>
-                  }
-                />
-
-                {/* Admin Routes */}
-                <Route
-                  path="/admin/products"
-                  element={
-                    <ProtectedRoute adminOnly>
-                      <AdminProducts />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin/rentals"
-                  element={
-                    <ProtectedRoute adminOnly>
-                      <AdminRentals />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin/hosts"
-                  element={
-                    <ProtectedRoute adminOnly>
-                      <AdminHosts />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin/payouts"
-                  element={
-                    <ProtectedRoute adminOnly>
-                      <AdminPayouts />
-                    </ProtectedRoute>
-                  }
-                />
-
-                {/* Developer/Testing Routes */}
-                <Route
-                  path="/api-tester"
-                  element={
-                    <ProtectedRoute>
-                      <APITester />
-                    </ProtectedRoute>
+                    <div className="text-center py-12">
+                      <div className="slide-up">
+                        <h1 className="text-responsive-xl font-bold gradient-text mb-4">
+                          Page Not Found
+                        </h1>
+                        <p className="text-gray-600 mb-8">
+                          The page you're looking for doesn't exist.
+                        </p>
+                        <button className="btn-flashy text-white px-8 py-3 rounded-full font-semibold shadow-lg">
+                          Go Home
+                        </button>
+                      </div>
+                    </div>
                   }
                 />
               </Routes>
-            </Suspense>
-          </main>
-          <Footer />
-
-          {/* Toast Notifications */}
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              duration: 4000,
-              style: {
-                background: "#363636",
-                color: "#fff",
-              },
-              success: {
-                duration: 3000,
-                iconTheme: {
-                  primary: "#10b981",
-                  secondary: "#fff",
-                },
-              },
-              error: {
-                duration: 5000,
-                iconTheme: {
-                  primary: "#ef4444",
-                  secondary: "#fff",
-                },
-              },
-            }}
-          />
-        </div>
-      </Router>
-    </AuthProvider>
+            </main>
+          </div>
+        </Router>
+      </AuthProvider>
+    </DataProvider>
   );
 }
 

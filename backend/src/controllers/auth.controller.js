@@ -1,424 +1,426 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/user.model');
-const logger = require('../utils/logger');
-const { asyncHandler, AppError, ERROR_TYPES } = require('../middleware/error.middleware');
+const User = require('../models/User');
+const config = require('../config');
+const { logger } = require('../config/database');
+const emailService = require('../services/email.service');
 
-// Login attempt tracking
-const loginAttempts = new Map();
-const MAX_LOGIN_ATTEMPTS = 5;
-const LOCKOUT_DURATION = 15 * 60 * 1000; // 15 minutes
-
-/**
- * Generate JWT token with additional security
- */
-const generateToken = (userId) => {
-  const payload = {
-    userId,
-    iat: Math.floor(Date.now() / 1000),
-    jti: require('crypto').randomBytes(16).toString('hex') // Unique token ID
-  };
-  
-  return jwt.sign(payload, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
-    issuer: 'rental-system',
-    audience: 'rental-users'
-  });
-};
-
-/**
- * Check and update login attempts
- */
-const checkLoginAttempts = (email, ip) => {
-  // Skip rate limiting checks in test/development environment
-  const isTestOrDev = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test' || !process.env.NODE_ENV;
-  if (isTestOrDev) {
-    return { count: 0, lockedUntil: 0 };
+class AuthController {
+  /**
+   * Register new user
+   */
+  static async register(req, res) {
+    try {
+      const { name, email, password, isHost, hostProfile } = req.body;
+      
+      // Check if user already exists
+      const existingUser = await User.findByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: 'User with this email already exists'
+        });
+      }
+      
+      // Create user
+      const userData = {
+        name: name.trim(),
+        email: email.toLowerCase().trim(),
+        passwordHash: password,
+        isHost: Boolean(isHost)
+      };
+      
+      // Add host profile if user is registering as host
+      if (isHost && hostProfile) {
+        userData.hostProfile = {
+          displayName: hostProfile.displayName?.trim(),
+          phone: hostProfile.phone?.trim(),
+          address: hostProfile.address?.trim(),
+          bio: hostProfile.bio?.trim(),
+          verified: false // Always start as unverified
+        };
+        userData.role = 'host';
+      }
+      
+      const user = new User(userData);
+      await user.save();
+      
+      // Generate JWT token
+      const token = jwt.sign(
+        { 
+          userId: user._id,
+          email: user.email,
+          role: user.role
+        },
+        config.JWT_SECRET,
+        { expiresIn: config.JWT_EXPIRES_IN }
+      );
+      
+      logger.info(`User registered successfully: ${user.email}`);
+      
+      // Send welcome email (non-blocking)
+      emailService.sendWelcomeEmail(user).catch(error => {
+        logger.error('Failed to send welcome email:', error);
+      });
+      
+      res.status(201).json({
+        success: true,
+        message: 'User registered successfully',
+        data: {
+          user: user.getPublicProfile(),
+          token
+        }
+      });
+      
+    } catch (error) {
+      logger.error('Registration error:', error);
+      
+      if (error.code === 11000) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email already exists'
+        });
+      }
+      
+      if (error.name === 'ValidationError') {
+        const errors = Object.values(error.errors).map(err => ({
+          field: err.path,
+          message: err.message
+        }));
+        
+        return res.status(400).json({
+          success: false,
+          message: 'Validation failed',
+          errors
+        });
+      }
+      
+      res.status(500).json({
+        success: false,
+        message: 'Registration failed. Please try again.'
+      });
+    }
   }
   
-  const key = `${email}-${ip}`;
-  const now = Date.now();
-  const attempts = loginAttempts.get(key) || { count: 0, lockedUntil: 0 };
-  
-  // Check if account is locked
-  if (attempts.lockedUntil > now) {
-    const remainingTime = Math.ceil((attempts.lockedUntil - now) / 1000 / 60);
-    throw new AppError(
-      `Account temporarily locked. Try again in ${remainingTime} minutes`,
-      429,
-      ERROR_TYPES.RATE_LIMIT,
-      { remainingTime }
-    );
+  /**
+   * Login user
+   */
+  static async login(req, res) {
+    try {
+      const { email, password } = req.body;
+      
+      // Find user by email
+      const user = await User.findByEmail(email);
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid email or password'
+        });
+      }
+      
+      // Check if account is active
+      if (!user.isActive) {
+        return res.status(401).json({
+          success: false,
+          message: 'Account is deactivated. Please contact support.'
+        });
+      }
+      
+      // Verify password
+      const isPasswordValid = await user.comparePassword(password);
+      if (!isPasswordValid) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid email or password'
+        });
+      }
+      
+      // Update last login
+      user.lastLogin = new Date();
+      await user.save();
+      
+      // Generate JWT token
+      const token = jwt.sign(
+        { 
+          userId: user._id,
+          email: user.email,
+          role: user.role
+        },
+        config.JWT_SECRET,
+        { expiresIn: config.JWT_EXPIRES_IN }
+      );
+      
+      logger.info(`User logged in successfully: ${user.email}`);
+      
+      res.json({
+        success: true,
+        message: 'Login successful',
+        data: {
+          user: user.getPublicProfile(),
+          token
+        }
+      });
+      
+    } catch (error) {
+      logger.error('Login error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Login failed. Please try again.'
+      });
+    }
   }
   
-  // Reset attempts if lockout period has passed
-  if (attempts.lockedUntil > 0 && now > attempts.lockedUntil) {
-    attempts.count = 0;
-    attempts.lockedUntil = 0;
+  /**
+   * Get current user profile
+   */
+  static async getProfile(req, res) {
+    try {
+      res.json({
+        success: true,
+        data: {
+          user: req.user.getPublicProfile()
+        }
+      });
+    } catch (error) {
+      logger.error('Get profile error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to retrieve profile'
+      });
+    }
   }
   
-  return attempts;
-};
-
-/**
- * Update login attempts on failure
- */
-const updateLoginAttempts = (email, ip) => {
-  // Skip rate limiting updates in test/development environment
-  const isTestOrDev = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test' || !process.env.NODE_ENV;
-  if (isTestOrDev) {
-    return;
+  /**
+   * Update user profile
+   */
+  static async updateProfile(req, res) {
+    try {
+      console.log('Raw request body:', JSON.stringify(req.body, null, 2));
+      console.log('Request body keys:', Object.keys(req.body));
+      console.log('Request content-type:', req.headers['content-type']);
+      
+      const { name, hostProfile } = req.body;
+      const user = req.user;
+      
+      console.log('Update request data:', { name, hostProfile });
+      console.log('User before update:', { id: user._id, name: user.name, email: user.email });
+      
+      // Update basic info
+      if (name) {
+        console.log('Updating name from', user.name, 'to', name.trim());
+        user.name = name.trim();
+      }
+      
+      // Update host profile fields (allow for all users, not just hosts)
+      if (hostProfile) {
+        // Initialize hostProfile if it doesn't exist
+        if (!user.hostProfile) {
+          user.hostProfile = {};
+        }
+        
+        // Update fields individually to handle empty strings properly
+        if (hostProfile.hasOwnProperty('displayName')) {
+          user.hostProfile.displayName = hostProfile.displayName?.trim() || '';
+        }
+        if (hostProfile.hasOwnProperty('phone')) {
+          user.hostProfile.phone = hostProfile.phone?.trim() || '';
+        }
+        if (hostProfile.hasOwnProperty('address')) {
+          user.hostProfile.address = hostProfile.address?.trim() || '';
+        }
+        if (hostProfile.hasOwnProperty('bio')) {
+          user.hostProfile.bio = hostProfile.bio?.trim() || '';
+        }
+        
+        // Preserve existing verified status
+        if (user.hostProfile.verified === undefined) {
+          user.hostProfile.verified = false;
+        }
+      }
+      
+      await user.save();
+      
+      console.log('User after save:', { id: user._id, name: user.name, email: user.email });
+      
+      logger.info(`Profile updated for user: ${user.email}`);
+      
+      res.json({
+        success: true,
+        message: 'Profile updated successfully',
+        data: {
+          user: user.getPublicProfile()
+        }
+      });
+      
+    } catch (error) {
+      logger.error('Update profile error:', error);
+      
+      if (error.name === 'ValidationError') {
+        const errors = Object.values(error.errors).map(err => ({
+          field: err.path,
+          message: err.message
+        }));
+        
+        return res.status(400).json({
+          success: false,
+          message: 'Validation failed',
+          errors
+        });
+      }
+      
+      res.status(500).json({
+        success: false,
+        message: 'Failed to update profile'
+      });
+    }
   }
   
-  const key = `${email}-${ip}`;
-  const attempts = loginAttempts.get(key) || { count: 0, lockedUntil: 0 };
-  
-  attempts.count++;
-  
-  // Lock account after max attempts
-  if (attempts.count >= MAX_LOGIN_ATTEMPTS) {
-    attempts.lockedUntil = Date.now() + LOCKOUT_DURATION;
+  /**
+   * Become a host (upgrade regular user to host)
+   */
+  static async becomeHost(req, res) {
+    try {
+      const { hostProfile } = req.body;
+      const user = req.user;
+      
+      if (user.isHost) {
+        return res.status(400).json({
+          success: false,
+          message: 'User is already a host'
+        });
+      }
+      
+      // Update user to host
+      user.isHost = true;
+      user.role = 'host';
+      user.hostProfile = {
+        displayName: hostProfile?.displayName?.trim() || user.name,
+        phone: hostProfile?.phone?.trim(),
+        address: hostProfile?.address?.trim(),
+        bio: hostProfile?.bio?.trim(),
+        verified: false
+      };
+      
+      await user.save();
+      
+      logger.info(`User upgraded to host: ${user.email}`);
+      
+      // Send host welcome email (non-blocking)
+      emailService.sendHostWelcomeEmail(user).catch(error => {
+        logger.error('Failed to send host welcome email:', error);
+      });
+      
+      res.json({
+        success: true,
+        message: 'Successfully upgraded to host account',
+        data: {
+          user: user.getPublicProfile()
+        }
+      });
+      
+    } catch (error) {
+      logger.error('Become host error:', error);
+      
+      if (error.name === 'ValidationError') {
+        const errors = Object.values(error.errors).map(err => ({
+          field: err.path,
+          message: err.message
+        }));
+        
+        return res.status(400).json({
+          success: false,
+          message: 'Validation failed',
+          errors
+        });
+      }
+      
+      res.status(500).json({
+        success: false,
+        message: 'Failed to upgrade to host account'
+      });
+    }
   }
   
-  loginAttempts.set(key, attempts);
-};
-
-/**
- * Clear login attempts on successful login
- */
-const clearLoginAttempts = (email, ip) => {
-  const key = `${email}-${ip}`;
-  loginAttempts.delete(key);
-};
-
-/**
- * Register new user
- */
-const register = asyncHandler(async (req, res, next) => {
-  const requestId = req.requestId || logger.generateRequestId();
-  const { name, email, password, role } = req.body;
-
-  logger.info('User registration started', { 
-    email, 
-    role: role || 'user',
-    requestId 
-  });
-
-  logger.startTimer('user-registration', requestId);
-
-  // Check if user already exists
-  const existingUser = await User.findOne({ email }).lean();
-  if (existingUser) {
-    logger.warn('Registration failed - Email already exists', { 
-      email, 
-      requestId 
-    });
-    
-    logger.endTimer('user-registration', requestId, { result: 'email-exists' });
-    throw new AppError(
-      'User with this email already exists',
-      400,
-      ERROR_TYPES.CONFLICT,
-      { field: 'email', value: email }
-    );
+  /**
+   * Change password
+   */
+  static async changePassword(req, res) {
+    try {
+      const { currentPassword, newPassword } = req.body;
+      const userId = req.user._id;
+      
+      // Get user with password hash for comparison
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+      
+      // Verify current password
+      const isCurrentPasswordValid = await user.comparePassword(currentPassword);
+      if (!isCurrentPasswordValid) {
+        return res.status(400).json({
+          success: false,
+          message: 'Current password is incorrect'
+        });
+      }
+      
+      // Update password
+      user.passwordHash = newPassword;
+      await user.save();
+      
+      logger.info(`Password changed for user: ${user.email}`);
+      
+      res.json({
+        success: true,
+        message: 'Password changed successfully'
+      });
+      
+    } catch (error) {
+      logger.error('Change password error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to change password'
+      });
+    }
   }
-
-  // Create new user (password will be hashed by pre-save hook)
-  const user = new User({ 
-    name: name.trim(),
-    email: email.toLowerCase().trim(),
-    password,
-    role: role || 'user'
-  });
-
-  await user.save();
-
-  // Generate token
-  const token = generateToken(user._id);
-
-  // Remove password from response
-  const userResponse = user.toJSON();
-
-  logger.info('User registered successfully', { 
-    userId: user._id, 
-    email,
-    role: user.role,
-    requestId 
-  });
-
-  logger.endTimer('user-registration', requestId, { result: 'success' });
-
-  res.status(201).json({
-    error: false,
-    message: 'User registered successfully',
-    token,
-    user: userResponse,
-    requestId
-  });
-});
-
-/**
- * Login user with enhanced security
- */
-const login = asyncHandler(async (req, res, next) => {
-  const requestId = req.requestId || logger.generateRequestId();
-  const { email, password } = req.body;
-  const clientIp = req.ip || 'unknown';
-
-  logger.info('User login attempt', { 
-    email, 
-    ip: clientIp,
-    userAgent: req.get('User-Agent'),
-    requestId 
-  });
-
-  logger.startTimer('user-login', requestId);
-
-  // Check login attempts and rate limiting
-  const attempts = checkLoginAttempts(email, clientIp);
-
-  // Find user by email
-  const user = await User.findOne({ email: email.toLowerCase().trim() });
-  if (!user) {
-    updateLoginAttempts(email, clientIp);
-    
-    logger.warn('Login failed - User not found', { 
-      email, 
-      ip: clientIp,
-      attempts: attempts.count + 1,
-      requestId 
-    });
-    
-    logger.endTimer('user-login', requestId, { result: 'user-not-found' });
-    
-    // Generic error message to prevent email enumeration
-    throw new AppError(
-      'Invalid email or password',
-      401,
-      ERROR_TYPES.AUTH
-    );
-  }
-
-  // Check if account is disabled
-  if (user.status === 'disabled') {
-    logger.warn('Login failed - Account disabled', { 
-      userId: user._id,
-      email, 
-      ip: clientIp,
-      requestId 
-    });
-    
-    logger.endTimer('user-login', requestId, { result: 'account-disabled' });
-    throw new AppError(
-      'Account has been disabled. Please contact support',
-      401,
-      ERROR_TYPES.AUTH
-    );
-  }
-
-  // Check password
-  const isPasswordValid = await user.comparePassword(password);
-  if (!isPasswordValid) {
-    updateLoginAttempts(email, clientIp);
-    
-    logger.warn('Login failed - Invalid password', { 
-      userId: user._id,
-      email, 
-      ip: clientIp,
-      attempts: attempts.count + 1,
-      requestId 
-    });
-    
-    logger.endTimer('user-login', requestId, { result: 'invalid-password' });
-    throw new AppError(
-      'Invalid email or password',
-      401,
-      ERROR_TYPES.AUTH
-    );
-  }
-
-  // Clear login attempts on successful login
-  clearLoginAttempts(email, clientIp);
-
-  // Update last login
-  user.lastLogin = new Date();
-  user.lastLoginIp = clientIp;
-  await user.save();
-
-  // Generate token
-  const token = generateToken(user._id);
-
-  // Remove password from response
-  const userResponse = user.toJSON();
-
-  logger.info('User logged in successfully', { 
-    userId: user._id, 
-    email,
-    role: user.role,
-    ip: clientIp,
-    requestId 
-  });
-
-  logger.endTimer('user-login', requestId, { result: 'success' });
-
-  res.status(200).json({
-    error: false,
-    message: 'Login successful',
-    token,
-    user: userResponse,
-    requestId
-  });
-});
-
-/**
- * Get current user profile
- */
-const getProfile = asyncHandler(async (req, res, next) => {
-  const requestId = req.requestId || logger.generateRequestId();
   
-  logger.info('Profile requested', { 
-    userId: req.user._id,
-    requestId 
-  });
-
-  // User is already attached by auth middleware
-  const userResponse = {
-    ...req.user,
-    password: undefined // Ensure password is not included
-  };
-
-  res.status(200).json({
-    error: false,
-    data: userResponse,
-    requestId
-  });
-});
-
-/**
- * Update user profile
- */
-const updateProfile = asyncHandler(async (req, res, next) => {
-  const requestId = req.requestId || logger.generateRequestId();
-  const { name } = req.body;
-  const userId = req.user._id;
-
-  logger.info('Profile update requested', { 
-    userId,
-    requestId 
-  });
-
-  logger.startTimer('profile-update', requestId);
-
-  const user = await User.findById(userId);
-  if (!user) {
-    logger.endTimer('profile-update', requestId, { result: 'user-not-found' });
-    throw new AppError('User not found', 404, ERROR_TYPES.NOT_FOUND);
+  /**
+   * Refresh JWT token
+   */
+  static async refreshToken(req, res) {
+    try {
+      const user = req.user;
+      
+      // Generate new JWT token
+      const token = jwt.sign(
+        { 
+          userId: user._id,
+          email: user.email,
+          role: user.role
+        },
+        config.JWT_SECRET,
+        { expiresIn: config.JWT_EXPIRES_IN }
+      );
+      
+      res.json({
+        success: true,
+        message: 'Token refreshed successfully',
+        data: {
+          token,
+          user: user.getPublicProfile()
+        }
+      });
+      
+    } catch (error) {
+      logger.error('Refresh token error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to refresh token'
+      });
+    }
   }
+}
 
-  // Update allowed fields
-  if (name !== undefined) {
-    user.name = name.trim();
-  }
-
-  await user.save();
-
-  const userResponse = user.toJSON();
-
-  logger.info('Profile updated successfully', { 
-    userId,
-    requestId 
-  });
-
-  logger.endTimer('profile-update', requestId, { result: 'success' });
-
-  res.status(200).json({
-    error: false,
-    message: 'Profile updated successfully',
-    data: userResponse,
-    requestId
-  });
-});
-
-/**
- * Change password
- */
-const changePassword = asyncHandler(async (req, res, next) => {
-  const requestId = req.requestId || logger.generateRequestId();
-  const { currentPassword, newPassword } = req.body;
-  const userId = req.user._id;
-
-  logger.info('Password change requested', { 
-    userId,
-    requestId 
-  });
-
-  logger.startTimer('password-change', requestId);
-
-  const user = await User.findById(userId);
-  if (!user) {
-    logger.endTimer('password-change', requestId, { result: 'user-not-found' });
-    throw new AppError('User not found', 404, ERROR_TYPES.NOT_FOUND);
-  }
-
-  // Verify current password
-  const isCurrentPasswordValid = await user.comparePassword(currentPassword);
-  if (!isCurrentPasswordValid) {
-    logger.warn('Password change failed - Invalid current password', { 
-      userId,
-      requestId 
-    });
-    
-    logger.endTimer('password-change', requestId, { result: 'invalid-current-password' });
-    throw new AppError(
-      'Current password is incorrect',
-      400,
-      ERROR_TYPES.AUTH
-    );
-  }
-
-  // Update password (will be hashed by pre-save hook)
-  user.password = newPassword;
-  await user.save();
-
-  logger.info('Password changed successfully', { 
-    userId,
-    requestId 
-  });
-
-  logger.endTimer('password-change', requestId, { result: 'success' });
-
-  res.status(200).json({
-    error: false,
-    message: 'Password changed successfully',
-    requestId
-  });
-});
-
-/**
- * Logout user (invalidate token - for future implementation with token blacklist)
- */
-const logout = asyncHandler(async (req, res, next) => {
-  const requestId = req.requestId || logger.generateRequestId();
-  
-  logger.info('User logout', { 
-    userId: req.user._id,
-    requestId 
-  });
-
-  // TODO: Implement token blacklist for more secure logout
-  // For now, client-side token removal is sufficient
-
-  res.status(200).json({
-    error: false,
-    message: 'Logged out successfully',
-    requestId
-  });
-});
-
-module.exports = {
-  register,
-  login,
-  getProfile,
-  updateProfile,
-  changePassword,
-  logout
-};
+module.exports = AuthController;

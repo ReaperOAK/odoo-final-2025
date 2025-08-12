@@ -1,287 +1,227 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
-import { listingsAPI } from "../api/listings";
-import ImageUpload from "../components/ImageUpload";
-import toast from "react-hot-toast";
-import {
-  PhotoIcon,
-  MapPinIcon,
-  CurrencyDollarIcon,
-  TagIcon,
-  DocumentTextIcon,
-  ClockIcon,
-  CheckCircleIcon,
-} from "@heroicons/react/24/outline";
-import clsx from "clsx";
+import { useAuth } from "../contexts/AuthContext";
+import { useData } from "../contexts/DataContext";
+import { listingsAPI } from "../lib/api";
+import Button from "../components/ui/Button";
+import Input from "../components/ui/Input";
+import Card from "../components/ui/Card";
 
 const CreateListing = () => {
-  const { user, isHost } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
-  const [currentStep, setCurrentStep] = useState(1);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { actions } = useData();
+
+  // Debug user info
+  console.log("Current user in CreateListing:", user);
+  console.log("User isHost:", user?.isHost);
 
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    category: "",
-    customCategory: "",
+    category: "electronics",
     basePrice: "",
     unitType: "day",
+    location: "",
+    totalQuantity: "1",
     depositType: "percent",
     depositValue: "20",
-    totalQuantity: "1",
-    location: "",
-    images: [],
-    availability: {
-      alwaysAvailable: true,
-      customSchedule: [],
-    },
-    policies: {
-      cancellationPolicy: "moderate",
-      minimumBookingPeriod: "1",
-      maximumBookingPeriod: "30",
-      instantBooking: false,
-    },
-    features: [],
-    customFeatures: [],
+    features: "",
+    rules: "",
+    images: "",
   });
 
   const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (!isHost()) {
-      navigate("/become-host");
-      return;
-    }
-  }, [isHost, navigate]);
-
-  const categories = [
-    "Electronics & Gadgets",
-    "Camera & Photography",
-    "Audio & Music",
-    "Sports & Fitness",
-    "Outdoor & Adventure",
-    "Transportation",
-    "Tools & Equipment",
-    "Party & Events",
-    "Gaming",
-    "Home & Garden",
-    "Fashion & Accessories",
-    "Books & Media",
-    "Other",
-  ];
-
-  const unitTypes = [
-    {
-      value: "hour",
-      label: "Per Hour",
-      description: "Ideal for short-term rentals",
-    },
-    {
-      value: "day",
-      label: "Per Day",
-      description: "Most common pricing model",
-    },
-    { value: "week", label: "Per Week", description: "For longer rentals" },
-  ];
-
-  const depositTypes = [
-    {
-      value: "percent",
-      label: "Percentage",
-      description: "Percentage of total cost",
-    },
-    {
-      value: "flat",
-      label: "Fixed Amount",
-      description: "Fixed deposit amount",
-    },
-  ];
-
-  const steps = [
-    { id: 1, title: "Basic Info", icon: DocumentTextIcon },
-    { id: 2, title: "Pricing", icon: CurrencyDollarIcon },
-    { id: 3, title: "Images", icon: PhotoIcon },
-    { id: 4, title: "Details", icon: TagIcon },
-    { id: 5, title: "Review", icon: CheckCircleIcon },
-  ];
-
-  const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
-
-    if (name.includes(".")) {
-      const [parent, child] = name.split(".");
-      setFormData((prev) => ({
-        ...prev,
-        [parent]: {
-          ...prev[parent],
-          [child]: type === "checkbox" ? checked : value,
-        },
-      }));
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        [name]: type === "checkbox" ? checked : value,
-      }));
-    }
-
-    // Clear error when user starts typing
-    if (errors[name]) {
-      setErrors((prev) => ({ ...prev, [name]: null }));
-    }
-  };
-
-  const handleImagesChange = (images) => {
-    setFormData((prev) => ({ ...prev, images }));
-    if (errors.images) {
-      setErrors((prev) => ({ ...prev, images: null }));
-    }
-  };
-
-  const validateStep = (step) => {
-    const newErrors = {};
-
-    switch (step) {
-      case 1:
-        if (!formData.title.trim()) newErrors.title = "Title is required";
-        if (!formData.description.trim())
-          newErrors.description = "Description is required";
-        if (!formData.category) newErrors.category = "Category is required";
-        if (formData.category === "Other" && !formData.customCategory.trim()) {
-          newErrors.customCategory = "Custom category is required";
-        }
-        if (!formData.location.trim())
-          newErrors.location = "Location is required";
-        break;
-
-      case 2:
-        if (!formData.basePrice || formData.basePrice <= 0) {
-          newErrors.basePrice = "Valid price is required";
-        }
-        if (!formData.totalQuantity || formData.totalQuantity <= 0) {
-          newErrors.totalQuantity = "Valid quantity is required";
-        }
-        if (!formData.depositValue || formData.depositValue < 0) {
-          newErrors.depositValue = "Valid deposit is required";
-        }
-        if (formData.depositType === "percent" && formData.depositValue > 100) {
-          newErrors.depositValue = "Percentage cannot exceed 100%";
-        }
-        break;
-
-      case 3:
-        if (formData.images.length === 0) {
-          newErrors.images = "At least one image is required";
-        }
-        break;
-
-      case 4:
-        // Optional validation for policies
-        break;
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const nextStep = () => {
-    if (validateStep(currentStep)) {
-      setCurrentStep((prev) => Math.min(prev + 1, 5));
-    }
-  };
-
-  const prevStep = () => {
-    setCurrentStep((prev) => Math.max(prev - 1, 1));
-  };
-
-  const handleSubmit = async () => {
-    if (!validateStep(4)) return;
-
+  const createListing = async (data) => {
     setIsSubmitting(true);
-
     try {
-      // Prepare form data
-      const listingData = {
-        ...formData,
-        category:
-          formData.category === "Other"
-            ? formData.customCategory
-            : formData.category,
-        basePrice: parseFloat(formData.basePrice),
-        depositValue: parseFloat(formData.depositValue),
-        totalQuantity: parseInt(formData.totalQuantity),
-        policies: {
-          ...formData.policies,
-          minimumBookingPeriod: parseInt(
-            formData.policies.minimumBookingPeriod
-          ),
-          maximumBookingPeriod: parseInt(
-            formData.policies.maximumBookingPeriod
-          ),
-        },
-      };
+      console.log("Creating listing...", data);
+      const response = await listingsAPI.create(data);
+      console.log("Listing created successfully:", response);
 
-      // Remove custom category field if not needed
-      if (formData.category !== "Other") {
-        delete listingData.customCategory;
+      // Refresh data using context actions
+      try {
+        await actions.fetchListings();
+        console.log("Listings refreshed successfully");
+      } catch (refreshError) {
+        console.warn("Failed to refresh listings:", refreshError);
       }
 
-      const response = await listingsAPI.createListing(listingData);
-
-      if (response.success) {
-        toast.success("Listing created successfully!");
-        navigate("/host/dashboard");
-      } else {
-        throw new Error(response.message || "Failed to create listing");
-      }
+      console.log("Data refreshed, navigating to dashboard...");
+      navigate("/host/dashboard");
     } catch (error) {
       console.error("Error creating listing:", error);
-      toast.error(error.message || "Failed to create listing");
+      throw error;
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const renderStepContent = () => {
-    switch (currentStep) {
-      case 1:
-        return (
-          <div className="space-y-6">
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+    // Clear error when user starts typing
+    if (errors[name]) {
+      setErrors((prev) => ({
+        ...prev,
+        [name]: "",
+      }));
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setErrors({});
+
+    // Basic validation
+    const newErrors = {};
+    if (!formData.title.trim()) {
+      newErrors.title = "Title is required";
+    } else if (formData.title.trim().length < 5) {
+      newErrors.title = "Title must be at least 5 characters";
+    } else if (formData.title.trim().length > 200) {
+      newErrors.title = "Title cannot exceed 200 characters";
+    }
+
+    if (!formData.description.trim()) {
+      newErrors.description = "Description is required";
+    } else if (formData.description.trim().length < 10) {
+      newErrors.description = "Description must be at least 10 characters";
+    } else if (formData.description.trim().length > 2000) {
+      newErrors.description = "Description cannot exceed 2000 characters";
+    }
+
+    if (!formData.location.trim()) {
+      newErrors.location = "Location is required";
+    } else if (formData.location.trim().length < 2) {
+      newErrors.location = "Location must be at least 2 characters";
+    } else if (formData.location.trim().length > 200) {
+      newErrors.location = "Location cannot exceed 200 characters";
+    }
+
+    if (!formData.basePrice || formData.basePrice <= 0) {
+      newErrors.basePrice = "Valid price is required";
+    } else if (formData.basePrice > 1000000) {
+      newErrors.basePrice = "Price cannot exceed ₹10,00,000";
+    }
+
+    if (!formData.totalQuantity || formData.totalQuantity <= 0) {
+      newErrors.totalQuantity = "Quantity must be at least 1";
+    } else if (formData.totalQuantity > 1000) {
+      newErrors.totalQuantity = "Quantity cannot exceed 1000";
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    // Format data for API
+    const submitData = {
+      ...formData,
+      basePrice: parseFloat(formData.basePrice),
+      totalQuantity: parseInt(formData.totalQuantity),
+      depositValue: parseFloat(formData.depositValue),
+      features: formData.features
+        ? formData.features
+            .split(",")
+            .map((f) => f.trim())
+            .filter((f) => f)
+        : [],
+      rules: formData.rules
+        ? formData.rules
+            .split(",")
+            .map((r) => r.trim())
+            .filter((r) => r)
+        : [],
+      images: formData.images
+        ? formData.images
+            .split(",")
+            .map((img) => img.trim())
+            .filter((img) => img)
+        : [],
+    };
+
+    console.log("Submitting listing data:", submitData);
+
+    try {
+      await createListing(submitData);
+    } catch (error) {
+      console.error("Error creating listing:", error);
+      console.error("Error response data:", error.response?.data);
+      console.error("Error status:", error.response?.status);
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to create listing";
+      const validationErrors = error.response?.data?.errors || [];
+      console.error("Validation errors:", validationErrors);
+      setErrors({ submit: errorMessage });
+    }
+  };
+
+  // Redirect if not a host
+  if (user && !user.isHost) {
+    navigate("/");
+    return null;
+  }
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="max-w-2xl mx-auto">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-gray-900">List Your Item</h1>
+          <p className="text-gray-600 mt-2">
+            Share your items with others and earn money while they're not in use
+          </p>
+        </div>
+
+        <Card className="p-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Title */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Listing Title *
+              <label
+                htmlFor="title"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Item Title *
               </label>
-              <input
-                type="text"
+              <Input
+                id="title"
                 name="title"
                 value={formData.title}
                 onChange={handleInputChange}
-                placeholder="e.g., Canon DSLR Camera with Lens Kit"
-                className={clsx(
-                  "w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent",
-                  errors.title && "border-red-500"
-                )}
+                placeholder="Professional DSLR Camera Kit"
+                className={errors.title ? "border-red-500" : ""}
               />
               {errors.title && (
                 <p className="text-red-500 text-sm mt-1">{errors.title}</p>
               )}
             </div>
 
+            {/* Description */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label
+                htmlFor="description"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
                 Description *
               </label>
               <textarea
+                id="description"
                 name="description"
                 value={formData.description}
                 onChange={handleInputChange}
                 rows={4}
-                placeholder="Describe your item in detail..."
-                className={clsx(
-                  "w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent",
-                  errors.description && "border-red-500"
-                )}
+                placeholder="Describe your item, its condition, what's included, and any special instructions..."
+                className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  errors.description ? "border-red-500" : ""
+                }`}
               />
               {errors.description && (
                 <p className="text-red-500 text-sm mt-1">
@@ -290,488 +230,255 @@ const CreateListing = () => {
               )}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Category *
-              </label>
-              <select
-                name="category"
-                value={formData.category}
-                onChange={handleInputChange}
-                className={clsx(
-                  "w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent",
-                  errors.category && "border-red-500"
-                )}
-              >
-                <option value="">Select a category</option>
-                {categories.map((category) => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
-                ))}
-              </select>
-              {errors.category && (
-                <p className="text-red-500 text-sm mt-1">{errors.category}</p>
-              )}
-            </div>
-
-            {formData.category === "Other" && (
+            {/* Category and Location */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Custom Category *
+                <label
+                  htmlFor="category"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Category *
                 </label>
-                <input
-                  type="text"
-                  name="customCategory"
-                  value={formData.customCategory}
+                <select
+                  id="category"
+                  name="category"
+                  value={formData.category}
                   onChange={handleInputChange}
-                  placeholder="Enter custom category"
-                  className={clsx(
-                    "w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent",
-                    errors.customCategory && "border-red-500"
-                  )}
-                />
-                {errors.customCategory && (
-                  <p className="text-red-500 text-sm mt-1">
-                    {errors.customCategory}
-                  </p>
-                )}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="electronics">Electronics</option>
+                  <option value="vehicles">Vehicles</option>
+                  <option value="sports">Sports & Recreation</option>
+                  <option value="music">Music & Audio</option>
+                  <option value="tools">Tools & Equipment</option>
+                  <option value="furniture">Furniture</option>
+                  <option value="other">Other</option>
+                </select>
               </div>
-            )}
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Location *
-              </label>
-              <div className="relative">
-                <MapPinIcon className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                <input
-                  type="text"
+              <div>
+                <label
+                  htmlFor="location"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Location *
+                </label>
+                <Input
+                  id="location"
                   name="location"
                   value={formData.location}
                   onChange={handleInputChange}
-                  placeholder="e.g., Mumbai, Maharashtra"
-                  className={clsx(
-                    "w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent",
-                    errors.location && "border-red-500"
-                  )}
+                  placeholder="City, State"
+                  className={errors.location ? "border-red-500" : ""}
                 />
+                {errors.location && (
+                  <p className="text-red-500 text-sm mt-1">{errors.location}</p>
+                )}
               </div>
-              {errors.location && (
-                <p className="text-red-500 text-sm mt-1">{errors.location}</p>
-              )}
             </div>
-          </div>
-        );
 
-      case 2:
-        return (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Pricing */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Base Price *
+                <label
+                  htmlFor="basePrice"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Base Price (₹) *
                 </label>
-                <div className="relative">
-                  <CurrencyDollarIcon className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                  <input
-                    type="number"
-                    name="basePrice"
-                    value={formData.basePrice}
-                    onChange={handleInputChange}
-                    placeholder="0"
-                    min="1"
-                    step="1"
-                    className={clsx(
-                      "w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent",
-                      errors.basePrice && "border-red-500"
-                    )}
-                  />
-                </div>
+                <Input
+                  id="basePrice"
+                  name="basePrice"
+                  type="number"
+                  min="1"
+                  step="0.01"
+                  value={formData.basePrice}
+                  onChange={handleInputChange}
+                  placeholder="50"
+                  className={errors.basePrice ? "border-red-500" : ""}
+                />
                 {errors.basePrice && (
                   <p className="text-red-500 text-sm mt-1">
                     {errors.basePrice}
                   </p>
                 )}
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Pricing Unit *
+                <label
+                  htmlFor="unitType"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Price Per *
                 </label>
                 <select
+                  id="unitType"
                   name="unitType"
                   value={formData.unitType}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
-                  {unitTypes.map((unit) => (
-                    <option key={unit.value} value={unit.value}>
-                      {unit.label}
-                    </option>
-                  ))}
+                  <option value="hour">Hour</option>
+                  <option value="day">Day</option>
+                  <option value="week">Week</option>
                 </select>
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Quantity Available *
-              </label>
-              <input
-                type="number"
-                name="totalQuantity"
-                value={formData.totalQuantity}
-                onChange={handleInputChange}
-                placeholder="1"
-                min="1"
-                className={clsx(
-                  "w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent",
-                  errors.totalQuantity && "border-red-500"
-                )}
-              />
-              {errors.totalQuantity && (
-                <p className="text-red-500 text-sm mt-1">
-                  {errors.totalQuantity}
-                </p>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Quantity and Deposit */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Deposit Type *
+                <label
+                  htmlFor="totalQuantity"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Available Quantity *
+                </label>
+                <Input
+                  id="totalQuantity"
+                  name="totalQuantity"
+                  type="number"
+                  min="1"
+                  value={formData.totalQuantity}
+                  onChange={handleInputChange}
+                  placeholder="1"
+                  className={errors.totalQuantity ? "border-red-500" : ""}
+                />
+                {errors.totalQuantity && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {errors.totalQuantity}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label
+                  htmlFor="depositType"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Deposit Type
                 </label>
                 <select
+                  id="depositType"
                   name="depositType"
                   value={formData.depositType}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
-                  {depositTypes.map((type) => (
-                    <option key={type.value} value={type.value}>
-                      {type.label}
-                    </option>
-                  ))}
+                  <option value="percent">Percentage</option>
+                  <option value="flat">Flat Amount</option>
                 </select>
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Deposit Value *
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    name="depositValue"
-                    value={formData.depositValue}
-                    onChange={handleInputChange}
-                    placeholder="20"
-                    min="0"
-                    max={formData.depositType === "percent" ? "100" : undefined}
-                    className={clsx(
-                      "w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent",
-                      errors.depositValue && "border-red-500"
-                    )}
-                  />
-                  <div className="absolute right-3 top-3 text-gray-500 text-sm">
-                    {formData.depositType === "percent" ? "%" : "₹"}
-                  </div>
-                </div>
-                {errors.depositValue && (
-                  <p className="text-red-500 text-sm mt-1">
-                    {errors.depositValue}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Pricing Preview */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h4 className="font-medium text-gray-900 mb-2">
-                Pricing Preview
-              </h4>
-              <div className="space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span>Base Price:</span>
-                  <span>
-                    ₹{formData.basePrice || 0}/{formData.unitType}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Deposit:</span>
-                  <span>
-                    {formData.depositType === "percent"
-                      ? `${formData.depositValue || 0}% of total`
-                      : `₹${formData.depositValue || 0}`}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-
-      case 3:
-        return (
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                Upload Images
-              </h3>
-              <p className="text-gray-600 mb-4">
-                Add high-quality images to showcase your item. The first image
-                will be the primary image.
-              </p>
-              <ImageUpload
-                images={formData.images}
-                onImagesChange={handleImagesChange}
-                maxImages={10}
-              />
-              {errors.images && (
-                <p className="text-red-500 text-sm mt-2">{errors.images}</p>
-              )}
-            </div>
-          </div>
-        );
-
-      case 4:
-        return (
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Booking Policies
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Minimum Booking Period
-                  </label>
-                  <select
-                    name="policies.minimumBookingPeriod"
-                    value={formData.policies.minimumBookingPeriod}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  >
-                    <option value="1">1 {formData.unitType}</option>
-                    <option value="2">2 {formData.unitType}s</option>
-                    <option value="3">3 {formData.unitType}s</option>
-                    <option value="7">1 week</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Maximum Booking Period
-                  </label>
-                  <select
-                    name="policies.maximumBookingPeriod"
-                    value={formData.policies.maximumBookingPeriod}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  >
-                    <option value="7">1 week</option>
-                    <option value="14">2 weeks</option>
-                    <option value="30">1 month</option>
-                    <option value="90">3 months</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Cancellation Policy
-                </label>
-                <select
-                  name="policies.cancellationPolicy"
-                  value={formData.policies.cancellationPolicy}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                <label
+                  htmlFor="depositValue"
+                  className="block text-sm font-medium text-gray-700 mb-2"
                 >
-                  <option value="flexible">
-                    Flexible - Full refund until 24h before
-                  </option>
-                  <option value="moderate">
-                    Moderate - Full refund until 48h before
-                  </option>
-                  <option value="strict">
-                    Strict - Full refund until 7 days before
-                  </option>
-                </select>
-              </div>
-
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  name="policies.instantBooking"
-                  checked={formData.policies.instantBooking}
+                  Deposit Value
+                </label>
+                <Input
+                  id="depositValue"
+                  name="depositValue"
+                  type="number"
+                  min="0"
+                  max={formData.depositType === "percent" ? "100" : undefined}
+                  step="0.01"
+                  value={formData.depositValue}
                   onChange={handleInputChange}
-                  className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                  placeholder={
+                    formData.depositType === "percent" ? "20" : "500"
+                  }
                 />
-                <label className="ml-2 text-sm text-gray-700">
-                  Enable instant booking (no approval required)
-                </label>
-              </div>
-            </div>
-          </div>
-        );
-
-      case 5:
-        return (
-          <div className="space-y-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
-              Review Your Listing
-            </h3>
-
-            <div className="bg-white border border-gray-200 rounded-lg p-6">
-              {/* Preview of the listing */}
-              <div className="space-y-4">
-                <div>
-                  <h4 className="font-medium text-gray-900">
-                    {formData.title}
-                  </h4>
-                  <p className="text-gray-600 text-sm">
-                    {formData.category} • {formData.location}
-                  </p>
-                </div>
-
-                <p className="text-gray-700">{formData.description}</p>
-
-                <div className="flex items-center space-x-4 text-sm">
-                  <span className="bg-primary-100 text-primary-800 px-2 py-1 rounded">
-                    ₹{formData.basePrice}/{formData.unitType}
-                  </span>
-                  <span className="text-gray-600">
-                    {formData.totalQuantity} available
-                  </span>
-                </div>
-
-                {formData.images.length > 0 && (
-                  <div className="grid grid-cols-4 gap-2">
-                    {formData.images.slice(0, 4).map((image, index) => (
-                      <img
-                        key={index}
-                        src={image.preview || image.url}
-                        alt={`Preview ${index + 1}`}
-                        className="w-full h-20 object-cover rounded"
-                      />
-                    ))}
-                  </div>
-                )}
+                <p className="text-sm text-gray-500 mt-1">
+                  {formData.depositType === "percent"
+                    ? "Percentage of item value"
+                    : "Fixed amount in ₹"}
+                </p>
               </div>
             </div>
 
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <div className="flex">
-                <ClockIcon className="w-5 h-5 text-yellow-600 mt-0.5 mr-2" />
-                <div>
-                  <h4 className="text-yellow-800 font-medium">Almost ready!</h4>
-                  <p className="text-yellow-700 text-sm mt-1">
-                    Your listing will be live once you submit it. You can always
-                    edit it later from your dashboard.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-
-      default:
-        return null;
-    }
-  };
-
-  if (!isHost()) {
-    return null; // Will redirect
-  }
-
-  return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          Create New Listing
-        </h1>
-        <p className="text-gray-600">
-          Share your item with the community and start earning
-        </p>
-      </div>
-
-      {/* Progress Steps */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
-          {steps.map((step, index) => (
-            <div key={step.id} className="flex items-center">
-              <div
-                className={clsx(
-                  "flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors duration-200",
-                  currentStep >= step.id
-                    ? "bg-primary-600 border-primary-600 text-white"
-                    : "border-gray-300 text-gray-400"
-                )}
+            {/* Features */}
+            <div>
+              <label
+                htmlFor="features"
+                className="block text-sm font-medium text-gray-700 mb-2"
               >
-                {currentStep > step.id ? (
-                  <CheckCircleIcon className="w-6 h-6" />
-                ) : (
-                  <step.icon className="w-6 h-6" />
-                )}
+                Key Features
+              </label>
+              <Input
+                id="features"
+                name="features"
+                value={formData.features}
+                onChange={handleInputChange}
+                placeholder="Image Stabilization, 4K Video, Weather Resistant (comma separated)"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                List the main features that make your item attractive
+              </p>
+            </div>
+
+            {/* Rules */}
+            <div>
+              <label
+                htmlFor="rules"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Rental Rules
+              </label>
+              <textarea
+                id="rules"
+                name="rules"
+                value={formData.rules}
+                onChange={handleInputChange}
+                rows={3}
+                placeholder="Handle with care, No water exposure, Return with all accessories (comma separated for multiple rules)"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Set clear expectations for renters
+              </p>
+            </div>
+
+            {/* Images */}
+            <div>
+              <label
+                htmlFor="images"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Image URLs
+              </label>
+              <Input
+                id="images"
+                name="images"
+                value={formData.images}
+                onChange={handleInputChange}
+                placeholder="https://example.com/image1.jpg, https://example.com/image2.jpg (comma separated)"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Add multiple images to showcase your item
+              </p>
+            </div>
+
+            {/* Error message */}
+            {errors.submit && (
+              <div className="bg-red-50 border border-red-200 rounded-md p-4">
+                <p className="text-red-600 text-sm">{errors.submit}</p>
               </div>
-              {index < steps.length - 1 && (
-                <div
-                  className={clsx(
-                    "w-full h-0.5 mx-4 transition-colors duration-200",
-                    currentStep > step.id ? "bg-primary-600" : "bg-gray-300"
-                  )}
-                />
-              )}
+            )}
+
+            {/* Buttons */}
+            <div className="flex gap-4 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => navigate("/host/dashboard")}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSubmitting} className="flex-1">
+                {isSubmitting ? "Creating Listing..." : "Create Listing"}
+              </Button>
             </div>
-          ))}
-        </div>
-        <div className="flex justify-between mt-2">
-          {steps.map((step) => (
-            <div key={step.id} className="text-xs text-gray-600 text-center">
-              {step.title}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Form Content */}
-      <div className="bg-white rounded-lg shadow-sm border p-6 mb-8">
-        {renderStepContent()}
-      </div>
-
-      {/* Navigation */}
-      <div className="flex justify-between">
-        <button
-          onClick={prevStep}
-          disabled={currentStep === 1}
-          className={clsx(
-            "px-6 py-3 rounded-lg font-medium transition-colors duration-200",
-            currentStep === 1
-              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-          )}
-        >
-          Previous
-        </button>
-
-        {currentStep < 5 ? (
-          <button
-            onClick={nextStep}
-            className="px-6 py-3 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 transition-colors duration-200"
-          >
-            Next
-          </button>
-        ) : (
-          <button
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-            className="px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:bg-gray-400 transition-colors duration-200"
-          >
-            {isSubmitting ? "Creating..." : "Create Listing"}
-          </button>
-        )}
+          </form>
+        </Card>
       </div>
     </div>
   );
